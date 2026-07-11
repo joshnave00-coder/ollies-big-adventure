@@ -1,0 +1,33 @@
+Art Asset Credits
+=================
+
+The environment/background art under assets/img/ comes from Kenney
+(https://kenney.nl), released under the Creative Commons Zero (CC0 1.0)
+public-domain dedication. No attribution is legally required, but credit
+is given gladly.
+
+Packs used (curated subsets):
+  - Platformer Art Deluxe   -> ground/ grass + dirt tiles
+  - Background Elements      -> sky/ clouds, hills, mountains
+  - Foliage Pack             -> foliage/ trees, bushes, grass tufts, flowers
+  - Pattern Pack             -> pattern/ wallpaper motifs (recoloured in-engine)
+  - Platformer Characters    -> char/ human NPC sprites (see below)
+
+License: CC0 1.0 Universal — https://creativecommons.org/publicdomain/zero/1.0/
+
+Human NPCs use Kenney "Platformer Characters" poses, some shirt-recoloured
+in-engine (a one-time hue swap that preserves the original shading):
+  - Dog Catcher  = Soldier (idle/walk), shirt recoloured BLUE (uniform) + a
+                   hand-drawn net — deliberately unlike anyone in the family
+  - Campers      = Adventurer / Player (idle/cheer)
+  - Lily         = Female, shirt recoloured ORANGE
+  - Leia         = Female, shirt recoloured GOLD
+  - Mom          = Female, shirt recoloured PURPLE  (homecoming screen)
+  - Dad          = Adventurer, shirt recoloured ORANGE (homecoming screen)
+Name tags keep Lily/Leia distinct.  The same sprites appear in-game and on the
+homecoming screen so the cast looks consistent everywhere.
+
+Ollie himself and all the animals/creatures (lion, hawk, bird, house cat,
+Roomba, the angel, the magic carpet, the bone) remain original, hand-coded
+procedural artwork drawn at runtime — the heart of the game stays the
+family's own.

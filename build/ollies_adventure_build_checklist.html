@@ -1,0 +1,510 @@
+
+<h2 class="sr-only">Ollie's Adventure — complete game build checklist with validation steps and Claude Code prompts</h2>
+
+<style>
+  .step { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); margin-bottom: 12px; overflow: hidden; }
+  .step-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; user-select: none; background: var(--color-background-primary); }
+  .step-header:hover { background: var(--color-background-secondary); }
+  .step-num { font-size: 12px; font-weight: 500; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-num.check { background: #EAF3DE; color: #27500A; }
+  .step-num.prompt { background: #EEEDFE; color: #3C3489; }
+  .step-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); flex: 1; }
+  .step-badge { font-size: 11px; padding: 3px 8px; border-radius: 4px; font-weight: 500; flex-shrink: 0; }
+  .badge-check { background: #EAF3DE; color: #3B6D11; }
+  .badge-prompt { background: #EEEDFE; color: #534AB7; }
+  .step-body { display: none; padding: 0 16px 16px; border-top: 0.5px solid var(--color-border-tertiary); background: var(--color-background-primary); }
+  .step-body.open { display: block; }
+  .checklist { list-style: none; padding: 0; margin: 12px 0 0; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; color: var(--color-text-secondary); padding: 5px 0; border-bottom: 0.5px solid var(--color-border-tertiary); line-height: 1.5; }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li input[type=checkbox] { margin-top: 2px; flex-shrink: 0; cursor: pointer; }
+  .prompt-box { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 12px 14px; margin-top: 12px; font-size: 12px; font-family: var(--font-mono); color: var(--color-text-primary); white-space: pre-wrap; line-height: 1.6; }
+  .copy-btn { margin-top: 10px; font-size: 12px; padding: 6px 14px; cursor: pointer; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: transparent; color: var(--color-text-secondary); }
+  .copy-btn:hover { background: var(--color-background-secondary); }
+  .chevron { font-size: 11px; color: var(--color-text-tertiary); transition: transform 0.2s; }
+  .chevron.open { transform: rotate(90deg); }
+  .phase-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; margin: 20px 0 8px; }
+  .phase-label:first-of-type { margin-top: 0; }
+</style>
+
+<div style="padding: 0.5rem 0;">
+
+<div class="phase-label">Phase 1 — Skeleton</div>
+
+<div class="step" id="s1">
+  <div class="step-header" onclick="toggle('s1')">
+    <div class="step-num check">1</div>
+    <div class="step-title">Validate the skeleton build</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s1">▶</span>
+  </div>
+  <div class="step-body" id="b-s1">
+    <p style="font-size:13px;color:var(--color-text-secondary);margin:12px 0 0;">Run <code>python main.py</code> and check off each item:</p>
+    <ul class="checklist">
+      <li><input type="checkbox"> Window opens at 1280×720 without crashing</li>
+      <li><input type="checkbox"> A background appears — sky, some ground/grass, and a big sun visible</li>
+      <li><input type="checkbox"> Ollie (apricot/peach colored rectangle or sprite) is visible on screen</li>
+      <li><input type="checkbox"> Arrow keys or WASD move Ollie left and right smoothly</li>
+      <li><input type="checkbox"> Spacebar or Up makes Ollie jump</li>
+      <li><input type="checkbox"> Ollie lands back on platforms — gravity is working</li>
+      <li><input type="checkbox"> Level scrolls horizontally as Ollie moves right</li>
+      <li><input type="checkbox"> Score (starts at 0) visible in the top corner of the screen</li>
+      <li><input type="checkbox"> Lives or health bar visible in the HUD</li>
+      <li><input type="checkbox"> No Python errors or red text in the terminal</li>
+      <li><input type="checkbox"> Game runs at a smooth framerate (no stuttering)</li>
+      <li><input type="checkbox"> Closing the window exits cleanly without errors</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 2 — Enemies</div>
+
+<div class="step" id="s2">
+  <div class="step-header" onclick="toggle('s2')">
+    <div class="step-num prompt">2</div>
+    <div class="step-title">Add enemies — dog catchers & wild animals</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s2">▶</span>
+  </div>
+  <div class="step-body" id="b-s2">
+    <div class="prompt-box" id="p2">Add enemies to the existing Ollie's Big Adventure game. Do not rebuild or replace existing code — extend it.
+
+ENEMY 1 — DOG CATCHERS
+- Human characters in uniforms (dark blue rectangle with a small net shape)
+- Patrol back and forth on platforms
+- If a dog catcher touches Ollie, Ollie loses 1 life and briefly flashes red (invincibility frames for 2 seconds so he can escape)
+- Speed: slow and predictable — kids should be able to dodge them
+
+ENEMY 2 — HAWKS
+- Flying enemy, moves in a slow horizontal patrol pattern in the air
+- If hawk touches Ollie, -1 life with same invincibility flash
+- Represented as a dark winged shape
+
+ENEMY 3 — TIGERS
+- Ground enemy, patrols platforms like dog catchers but moves faster
+- Orange/black striped rectangle
+- Same damage: -1 life on contact
+
+ENEMY 4 — LIONS
+- Ground enemy, larger than tiger, slower but takes up more space
+- Golden/yellow rectangle
+- Same damage: -1 life on contact
+
+ALL ENEMIES
+- Show a visible warning indicator (exclamation mark "!" above Ollie) when any enemy is within 150px
+- Enemies should NOT be so dense that the level is unpassable — space them out with clear gaps Ollie can run through
+- Enemies respawn in place if Ollie moves far enough away and comes back
+- When Ollie hits 0 lives, show a simple "Game Over" screen with score and a restart option</div>
+    <button class="copy-btn" onclick="copyPrompt('p2', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s3">
+  <div class="step-header" onclick="toggle('s3')">
+    <div class="step-num check">3</div>
+    <div class="step-title">Validate enemies</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s3">▶</span>
+  </div>
+  <div class="step-body" id="b-s3">
+    <ul class="checklist">
+      <li><input type="checkbox"> Dog catchers visible on screen, moving back and forth</li>
+      <li><input type="checkbox"> Hawks flying in the air at a separate height from ground enemies</li>
+      <li><input type="checkbox"> Tigers and lions visible on platforms with distinct colors</li>
+      <li><input type="checkbox"> Walking into a dog catcher takes away a life</li>
+      <li><input type="checkbox"> Ollie flashes after being hit (invincibility frames work)</li>
+      <li><input type="checkbox"> The "!" warning appears above Ollie when enemies are nearby</li>
+      <li><input type="checkbox"> Lives counter in the HUD decreases correctly</li>
+      <li><input type="checkbox"> Reaching 0 lives shows a Game Over screen</li>
+      <li><input type="checkbox"> Game Over screen shows the score and a restart option</li>
+      <li><input type="checkbox"> You can still complete a path through the level without enemies being completely blocking</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 3 — Friendly characters</div>
+
+<div class="step" id="s4">
+  <div class="step-header" onclick="toggle('s4')">
+    <div class="step-num prompt">4</div>
+    <div class="step-title">Add friendly characters — campers, Lily & Leia</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s4">▶</span>
+  </div>
+  <div class="step-body" id="b-s4">
+    <div class="prompt-box" id="p4">Add friendly characters to the existing game. Do not rebuild existing code — extend it.
+
+CAMPERS
+- Human characters sitting near a small campfire or tent
+- When Ollie walks within 80px, trigger a "pet" interaction: play a small heart particle effect above Ollie, +10 points
+- 2 seconds later (or on a second approach), trigger a "treat" interaction: small bone icon briefly appears, +15 points
+- Show a soft green glow or smile indicator to mark them as SAFE/friendly
+- Each camper can only reward Ollie once per visit (must walk away and return for another interaction)
+- Place 2–3 campers across the level
+
+LILY (little girl, blonde hair)
+- Represented as a small figure with yellow/blonde color on top (hair) and a dress
+- Stationed at 2 spots across the level, cheering Ollie forward
+- When Ollie is moving in the right direction (moving right) and passes near Lily, she gives a treat: +20 points with a sparkle effect
+- Show a small "Good boy!" floating text on the reward
+
+LEIA (little girl, light brown hair)
+- Same behavior as Lily but with light brown hair color
+- Placed at different positions than Lily
+- Same reward: +20 points with floating "You got this!" text
+
+ALL FRIENDLY CHARACTERS
+- Never cause damage to Ollie
+- Visually distinct from enemies (warm, bright colors vs dark enemy colors)
+- Rewards only trigger once per pass — Ollie must move away to reset</div>
+    <button class="copy-btn" onclick="copyPrompt('p4', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s5">
+  <div class="step-header" onclick="toggle('s5')">
+    <div class="step-num check">5</div>
+    <div class="step-title">Validate friendly characters</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s5">▶</span>
+  </div>
+  <div class="step-body" id="b-s5">
+    <ul class="checklist">
+      <li><input type="checkbox"> Campers visible on screen with a campfire or tent nearby</li>
+      <li><input type="checkbox"> Walking up to a camper triggers a heart effect and +10 points</li>
+      <li><input type="checkbox"> A second interaction gives the treat reward (+15 points)</li>
+      <li><input type="checkbox"> Campers have a visible friendly indicator (green glow or smile)</li>
+      <li><input type="checkbox"> Lily is visible with blonde coloring</li>
+      <li><input type="checkbox"> Moving right past Lily gives +20 points and "Good boy!" text</li>
+      <li><input type="checkbox"> Leia is visible with brown hair coloring at a different location</li>
+      <li><input type="checkbox"> Moving past Leia gives +20 points and "You got this!" text</li>
+      <li><input type="checkbox"> Score counter in HUD increases correctly for all interactions</li>
+      <li><input type="checkbox"> None of the friendly characters hurt Ollie</li>
+      <li><input type="checkbox"> Rewards don't repeat on continuous contact — must walk away to reset</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 4 — Birds</div>
+
+<div class="step" id="s6">
+  <div class="step-header" onclick="toggle('s6')">
+    <div class="step-num prompt">6</div>
+    <div class="step-title">Add birds — chase & catch mechanic</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s6">▶</span>
+  </div>
+  <div class="step-body" id="b-s6">
+    <div class="prompt-box" id="p6">Add a bird chase mechanic to the existing game. Do not rebuild existing code — extend it.
+
+BIRDS
+- Small birds (small bright yellow or blue rectangles/shapes) perched on platforms or floating slowly
+- When Ollie comes within 120px, the bird flutters and tries to flee in the opposite direction
+- Ollie automatically speeds up slightly when chasing a bird (he's excited)
+- If Ollie's hitbox overlaps the bird (catches it), the bird disappears with a small "poof" particle effect and Ollie earns +25 points
+- Play a brief happy-wag animation on Ollie when he catches a bird
+- Show "+25" floating score text at the catch location
+- Birds do NOT damage Ollie under any circumstances — they are prey, not enemies
+- Place 4–5 birds across the level at varying heights
+- Birds that escape off-screen do not respawn (missed opportunity — that's ok)</div>
+    <button class="copy-btn" onclick="copyPrompt('p6', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s7">
+  <div class="step-header" onclick="toggle('s7')">
+    <div class="step-num check">7</div>
+    <div class="step-title">Validate birds</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s7">▶</span>
+  </div>
+  <div class="step-body" id="b-s7">
+    <ul class="checklist">
+      <li><input type="checkbox"> Birds visible at different spots and heights across the level</li>
+      <li><input type="checkbox"> Bird flutters/moves away when Ollie gets close</li>
+      <li><input type="checkbox"> Ollie visibly speeds up slightly when chasing a bird</li>
+      <li><input type="checkbox"> Catching a bird shows a poof effect and the bird disappears</li>
+      <li><input type="checkbox"> Score increases by 25 on a catch</li>
+      <li><input type="checkbox"> "+25" floating text appears at the catch location</li>
+      <li><input type="checkbox"> Birds never damage Ollie</li>
+      <li><input type="checkbox"> Caught birds don't reappear</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 5 — Angel event</div>
+
+<div class="step" id="s8">
+  <div class="step-header" onclick="toggle('s8')">
+    <div class="step-num prompt">8</div>
+    <div class="step-title">Add the angel celebration event</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s8">▶</span>
+  </div>
+  <div class="step-body" id="b-s8">
+    <div class="prompt-box" id="p8">Add the Angel celebration event to the existing game. Do not rebuild existing code — extend it.
+
+ANGEL EVENT
+- An Angel character (white winged shape with a yellow halo circle above it) floats down from the top of the screen
+- The Angel glows yellow — use a pulsing yellow tint or animated yellow circle around it
+- The Angel event is triggered RANDOMLY — roughly 1 in 4 chance each time Ollie earns ANY points
+- It should NOT trigger every time points are earned — it's a special surprise
+- The Angel floats down from above the screen into view over about 1.5 seconds, pauses for 2 seconds glowing, then floats back up and disappears
+- While the Angel is on screen, display "Heaven-sent!" text near it
+- The Angel is purely celebratory — it does not give extra points, it does not interact with Ollie physically
+- Only one Angel can be on screen at a time — if one is already animating, skip the trigger
+- Make sure the Angel appears in the visible portion of the screen (relative to the camera/scroll position)</div>
+    <button class="copy-btn" onclick="copyPrompt('p8', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s9">
+  <div class="step-header" onclick="toggle('s9')">
+    <div class="step-num check">9</div>
+    <div class="step-title">Validate angel event</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s9">▶</span>
+  </div>
+  <div class="step-body" id="b-s9">
+    <ul class="checklist">
+      <li><input type="checkbox"> Earn points several times — Angel does NOT appear every time</li>
+      <li><input type="checkbox"> Angel eventually appears after a few point-scoring events</li>
+      <li><input type="checkbox"> Angel floats down from the top of the visible screen</li>
+      <li><input type="checkbox"> Angel has a visible yellow glow or pulsing effect</li>
+      <li><input type="checkbox"> "Heaven-sent!" text appears near the Angel</li>
+      <li><input type="checkbox"> Angel pauses briefly then floats back up and disappears</li>
+      <li><input type="checkbox"> A second Angel does not appear while one is already on screen</li>
+      <li><input type="checkbox"> Angel appears on the visible screen — not off to the side or off-screen</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 6 — End of level sequence</div>
+
+<div class="step" id="s10">
+  <div class="step-header" onclick="toggle('s10')">
+    <div class="step-num prompt">10</div>
+    <div class="step-title">Add the hot slide & water pickup</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s10">▶</span>
+  </div>
+  <div class="step-body" id="b-s10">
+    <div class="prompt-box" id="p10">Add the hot slide end-of-level sequence to the existing game. Do not rebuild existing code — extend it.
+
+WATER BOTTLE PICKUP
+- Place a water bottle collectible item (blue rectangle with a "W" label) somewhere before the slide in the level
+- When Ollie walks over it, he picks it up automatically
+- Show a "+Water" floating text and a brief blue sparkle effect
+- Add a small water bottle icon to the HUD to show Ollie is carrying water
+
+HOT SLIDE
+- Near the end of the level, place a large diagonal slide shape (angled rect) in orange/red
+- Show heat shimmer effect — wavy lines or orange glow around the slide
+- Display a warning sign near the slide ("HOT!")
+- BEHAVIOR A — Ollie has water: he slides down safely, plays a happy animation, level sequence continues
+- BEHAVIOR B — Ollie has no water: he takes damage (-1 life) sliding down and shows a "Ouch! Too hot!" message, but still completes the slide (the game doesn't softlock)
+- After sliding down, Ollie lands at the bottom and the end-of-level trigger zone begins</div>
+    <button class="copy-btn" onclick="copyPrompt('p10', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s11">
+  <div class="step-header" onclick="toggle('s11')">
+    <div class="step-num check">11</div>
+    <div class="step-title">Validate hot slide sequence</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s11">▶</span>
+  </div>
+  <div class="step-body" id="b-s11">
+    <ul class="checklist">
+      <li><input type="checkbox"> Water bottle pickup visible in the level before the slide</li>
+      <li><input type="checkbox"> Walking over the water bottle collects it — "+Water" text appears</li>
+      <li><input type="checkbox"> Water bottle icon shows in the HUD after collecting</li>
+      <li><input type="checkbox"> Slide visible with orange/red color and heat effect</li>
+      <li><input type="checkbox"> "HOT!" warning sign is visible near the slide</li>
+      <li><input type="checkbox"> With water: Ollie slides down happily with no damage</li>
+      <li><input type="checkbox"> Without water: Ollie takes damage and "Ouch! Too hot!" message shows</li>
+      <li><input type="checkbox"> Game does not get stuck — Ollie always gets to the bottom of the slide</li>
+    </ul>
+  </div>
+</div>
+
+<div class="step" id="s12">
+  <div class="step-header" onclick="toggle('s12')">
+    <div class="step-num prompt">12</div>
+    <div class="step-title">Add magic carpet liftoff & home arrival</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s12">▶</span>
+  </div>
+  <div class="step-body" id="b-s12">
+    <div class="prompt-box" id="p12">Add the magic carpet and home arrival ending to the existing game. Do not rebuild existing code — extend it.
+
+MAGIC CARPET
+- At the bottom of the slide / end of the level, place a magic carpet on the ground (colorful patterned rectangle — reds, golds, blues)
+- When Ollie walks onto it, he "sits" on the carpet and it begins to rise
+- Animate the carpet flying to the right across the screen, gradually rising upward, then exiting off the right edge
+- Show sparkle/star trail behind the carpet as it flies
+- Fade to a brief "traveling..." transition (black screen or swirling stars) before the home scene loads
+
+HOME ARRIVAL SCENE (new screen/state)
+- A cozy house with a yard in daytime — bright, warm colors
+- Ollie flies in on the carpet from the left, lands in the yard, and the carpet disappears
+- The human family appears: Mom (pink dress), Dad (blue shirt), Lily (yellow hair), Leia (light brown hair) — all waving or jumping in place with a happy animation
+- A treasure chest sits in the yard and pops open when Ollie arrives — gold coins or sparkles fly out
+- Confetti falls from the top of the screen
+- Large friendly text appears: "You made it home, Ollie!"
+- Final score is displayed below the message
+- A "Play Again" button restarts from the title screen</div>
+    <button class="copy-btn" onclick="copyPrompt('p12', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s13">
+  <div class="step-header" onclick="toggle('s13')">
+    <div class="step-num check">13</div>
+    <div class="step-title">Validate magic carpet & home arrival</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s13">▶</span>
+  </div>
+  <div class="step-body" id="b-s13">
+    <ul class="checklist">
+      <li><input type="checkbox"> Magic carpet visible at end of level after the slide</li>
+      <li><input type="checkbox"> Walking onto carpet triggers the flight animation</li>
+      <li><input type="checkbox"> Carpet flies to the right with sparkle trail</li>
+      <li><input type="checkbox"> Transition to home scene works without crashing</li>
+      <li><input type="checkbox"> Home scene shows a house and yard</li>
+      <li><input type="checkbox"> All four family members visible and animated (waving/jumping)</li>
+      <li><input type="checkbox"> Treasure chest pops open with coins or sparkles</li>
+      <li><input type="checkbox"> Confetti falls from the top of the screen</li>
+      <li><input type="checkbox"> "You made it home, Ollie!" message displayed</li>
+      <li><input type="checkbox"> Final score shown correctly</li>
+      <li><input type="checkbox"> "Play Again" button works and restarts the game</li>
+    </ul>
+  </div>
+</div>
+
+<div class="phase-label">Phase 7 — Polish</div>
+
+<div class="step" id="s14">
+  <div class="step-header" onclick="toggle('s14')">
+    <div class="step-num prompt">14</div>
+    <div class="step-title">Add sound effects & music</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s14">▶</span>
+  </div>
+  <div class="step-body" id="b-s14">
+    <div class="prompt-box" id="p14">Add sound effects to the existing game using Pygame's built-in sound tools. Do not rebuild existing code — extend it. Use programmatically generated sounds (pygame.sndarray or simple sine wave generation) since we have no audio files — do not require external .wav or .mp3 files.
+
+Generate simple beep/tone sounds for:
+- Point earned: short upward ding
+- Treat collected: two-tone happy chirp
+- Bird caught: quick flutter-then-pop sound
+- Enemy hit (Ollie takes damage): low thud or buzzer
+- Angel appears: soft ascending chime
+- Water collected: bubbly blip
+- Slide: whoosh sound
+- Carpet liftoff: ascending hum
+- Home arrival: short triumphant fanfare (3–4 tones)
+- Game over: descending low tone
+
+Keep all sounds short (under 1 second except fanfare). Volume should be moderate — not startling for kids. If programmatic sound generation is too complex, use pygame.mixer to generate minimal placeholder tones and note in a comment where real audio files could be swapped in later.</div>
+    <button class="copy-btn" onclick="copyPrompt('p14', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s15">
+  <div class="step-header" onclick="toggle('s15')">
+    <div class="step-num check">15</div>
+    <div class="step-title">Validate sound</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s15">▶</span>
+  </div>
+  <div class="step-body" id="b-s15">
+    <ul class="checklist">
+      <li><input type="checkbox"> Earning points plays an audible ding</li>
+      <li><input type="checkbox"> Taking damage plays a distinct thud/buzzer sound</li>
+      <li><input type="checkbox"> Catching a bird plays a different sound than a treat</li>
+      <li><input type="checkbox"> Angel appearance has its own sound</li>
+      <li><input type="checkbox"> Home arrival fanfare plays</li>
+      <li><input type="checkbox"> No sounds are missing or cause crashes</li>
+      <li><input type="checkbox"> Volume is not startlingly loud</li>
+    </ul>
+  </div>
+</div>
+
+<div class="step" id="s16">
+  <div class="step-header" onclick="toggle('s16')">
+    <div class="step-num prompt">16</div>
+    <div class="step-title">Add title screen & final polish</div>
+    <span class="step-badge badge-prompt">Claude Code prompt</span>
+    <span class="chevron" id="ch-s16">▶</span>
+  </div>
+  <div class="step-body" id="b-s16">
+    <div class="prompt-box" id="p16">Add a title screen and final polish pass to the existing game. Do not rebuild existing code — extend it.
+
+TITLE SCREEN
+- Show before gameplay begins
+- Display "Ollie's Big Adventure" in large friendly text
+- Show a simple scene: Ollie the apricot poodle sitting, the sun in the sky, some grass
+- "Press SPACE to Start" blinking text
+- Brief one-line story text: "Ollie is lost. Help him find his way home!"
+
+POLISH ITEMS
+- Add a slight bobbing/idle animation to Ollie when he is standing still (gentle up-down movement)
+- Make floating score text ("+25", "Good boy!", etc.) fade out upward over 1.5 seconds instead of disappearing instantly
+- Ensure all text in the game uses a rounded, friendly font if available — fall back to the default pygame font if not
+- Add a simple pause function: pressing P pauses the game and shows "PAUSED" on screen, pressing P again resumes
+- Do a quick pass to make sure enemy and friendly character colors are clearly distinct — enemies should look threatening (dark/red tones), friendlies should look warm and inviting (bright/warm tones)
+- Confirm that the HUD (score, lives, water icon) stays visible and readable at all times during scrolling</div>
+    <button class="copy-btn" onclick="copyPrompt('p16', this)">Copy prompt</button>
+  </div>
+</div>
+
+<div class="step" id="s17">
+  <div class="step-header" onclick="toggle('s17')">
+    <div class="step-num check">17</div>
+    <div class="step-title">Final full playthrough validation</div>
+    <span class="step-badge badge-check">Checklist</span>
+    <span class="chevron" id="ch-s17">▶</span>
+  </div>
+  <div class="step-body" id="b-s17">
+    <p style="font-size:13px;color:var(--color-text-secondary);margin:12px 0 0;">Do one complete playthrough start to finish and check everything together:</p>
+    <ul class="checklist">
+      <li><input type="checkbox"> Title screen appears with story text and "Press SPACE to Start"</li>
+      <li><input type="checkbox"> Game starts correctly from the title screen</li>
+      <li><input type="checkbox"> Ollie idles with a bobbing animation when standing still</li>
+      <li><input type="checkbox"> Pause (P key) works and resumes correctly</li>
+      <li><input type="checkbox"> All enemies patrol and damage Ollie on contact</li>
+      <li><input type="checkbox"> All friendly characters reward points correctly</li>
+      <li><input type="checkbox"> Birds flee and can be caught for points</li>
+      <li><input type="checkbox"> Angel appears randomly (not every time) during the level</li>
+      <li><input type="checkbox"> Water bottle collectible found and picked up before the slide</li>
+      <li><input type="checkbox"> Slide behaves correctly with and without water</li>
+      <li><input type="checkbox"> Magic carpet picks up Ollie and flies to the home scene</li>
+      <li><input type="checkbox"> Home arrival shows full family, confetti, treasure chest, and final score</li>
+      <li><input type="checkbox"> "Play Again" restarts from the title screen cleanly</li>
+      <li><input type="checkbox"> Game Over screen still works if Ollie loses all lives mid-level</li>
+      <li><input type="checkbox"> No crashes or Python errors throughout the full playthrough</li>
+      <li><input type="checkbox"> The game feels fun — you smiled at least once while playing</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<script>
+function toggle(id) {
+  const body = document.getElementById('b-' + id);
+  const ch = document.getElementById('ch-' + id);
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  ch.classList.toggle('open', !isOpen);
+}
+function copyPrompt(id, btn) {
+  const text = document.getElementById(id).innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy prompt', 2000);
+  });
+}
+</script>
