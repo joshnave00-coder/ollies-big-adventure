@@ -371,21 +371,25 @@ class Level2:
     def draw_background(self, surf):
         cam = self.camera_x
 
-        # Base wall — warm vertical gradient (lighter near ceiling)
-        surf.blit(art.vgradient(SCREEN_WIDTH, GROUND_Y,
-                                (246, 230, 204), (224, 202, 172)), (0, 0))
-
-        # Subtle tiled wallpaper motif (recoloured CC0 pattern at low alpha)
-        if not hasattr(self, "_wallpaper"):
+        # Base wall — warm vertical gradient (lighter near ceiling) with a subtle
+        # tiled wallpaper motif (recoloured CC0 pattern at low alpha).  Composed
+        # once into a strip one tile wider than the screen, then scrolled with a
+        # single opaque blit instead of dozens of translucent tile blits per frame.
+        if not hasattr(self, "_wall"):
             wp = art.tinted("pattern/wall_a.png", (158, 126, 90), 132).copy()
             wp.set_alpha(26)
-            self._wallpaper = wp
-        wp = self._wallpaper
-        tw, th = wp.get_size()
-        ox = int(cam) % tw
-        for x in range(-ox, SCREEN_WIDTH, tw):
-            for y in range(62, GROUND_Y, th):
-                surf.blit(wp, (x, y))
+            tw, th = wp.get_size()
+            wall = pygame.Surface((SCREEN_WIDTH + tw, GROUND_Y))
+            grad = art.vgradient(SCREEN_WIDTH, GROUND_Y,
+                                 (246, 230, 204), (224, 202, 172))
+            wall.blit(grad, (0, 0))
+            wall.blit(grad, (SCREEN_WIDTH, 0))
+            for x in range(0, SCREEN_WIDTH + tw, tw):
+                for y in range(62, GROUND_Y, th):
+                    wall.blit(wp, (x, y))
+            self._wall, self._wall_tile_w = wall, tw
+        surf.blit(self._wall, (0, 0),
+                  (int(cam) % self._wall_tile_w, 0, SCREEN_WIDTH, GROUND_Y))
 
         # Per-room wall tints (drawn as translucent overlays)
         room_tints = [
@@ -851,11 +855,18 @@ class Level2:
 
     def draw_characters(self, surf):
         cam = self.camera_x
+        # Only draw enemies near the screen — most of the house is off-screen
+        def visible(e):
+            return -e.w - 100 < e.x - cam < SCREEN_WIDTH + 100
+
         for cat in self.cats:
+            if not visible(cat):
+                continue
             if cat.active:
                 art.ground_shadow(surf, int(cat.x - cam) + cat.w // 2,
                                   int(cat.y) + cat.h - 1, cat.w + 6, 11, 60)
             cat.draw(surf, cam)
         for roomba in self.roombas:
-            roomba.draw(surf, cam)
+            if visible(roomba):
+                roomba.draw(surf, cam)
         self.bone_crate.draw(surf, cam)

@@ -28,6 +28,7 @@ class Game:
         self.player = Player(80, GROUND_Y - OLLIE_SIZE[1])
         self.level = Level()
         self.angel = Angel()
+        self.ui.clear_transient()
         self.score_event_count = 0
         self.has_water = False
 
@@ -77,6 +78,7 @@ class Game:
         """Start Level 2 — player keeps score and lives from Level 1."""
         self.level = Level2()
         self.angel = Angel()
+        self.ui.clear_transient()
         self.has_water = False
         self.slide_done = False
         self.carpet_launched = False
@@ -102,6 +104,7 @@ class Game:
         """Start Level 3 (Heaven) — player keeps score and lives from Level 2."""
         self.level = Level3()
         self.angel = Angel()
+        self.ui.clear_transient()
         self.has_water = False
         self.slide_done = False
         self.carpet_launched = False
@@ -135,16 +138,40 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
+                elif event.type in (pygame.WINDOWFOCUSLOST, pygame.WINDOWMINIMIZED):
+                    # Don't let enemies catch Ollie while nobody is looking
+                    self._pause()
                 self._handle_event(event)
 
             self._update()
             self._draw()
             if self.display and self.display is not self.screen:
-                self.display.fill((0, 0, 0))
-                dw, dh = self.display.get_size()
-                gw, gh = self.screen.get_size()
-                self.display.blit(self.screen, ((dw - gw) // 2, (dh - gh) // 2))
+                # After a window resize the live surface can be a new object
+                self._present(pygame.display.get_surface() or self.display)
             pygame.display.flip()
+
+    def _present(self, display):
+        """Copy the fixed-size game surface to the window, scaled to fit with
+        black bars, so a small or maximised window never crops or shrinks the game."""
+        dw, dh = display.get_size()
+        gw, gh = self.screen.get_size()
+        if (dw, dh) == (gw, gh):
+            display.blit(self.screen, (0, 0))
+            return
+        scale = min(dw / gw, dh / gh)
+        w, h = int(gw * scale), int(gh * scale)
+        display.fill((0, 0, 0))
+        if w > 0 and h > 0:
+            display.blit(pygame.transform.smoothscale(self.screen, (w, h)),
+                         ((dw - w) // 2, (dh - h) // 2))
+
+    def _pause(self):
+        """Pause if a pauseable play state is active. Returns True if it paused."""
+        if self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3):
+            self._prev_state = self.state
+            self.state = STATE_PAUSED
+            return True
+        return False
 
     # ------------------------------------------------------------------ #
     def _handle_event(self, event):
@@ -154,13 +181,16 @@ class Game:
 
         # Pause / resume — works in any active play state
         if key in (pygame.K_p, pygame.K_ESCAPE):
-            if self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3):
-                self._prev_state = self.state
-                self.state = STATE_PAUSED
+            if self._pause():
                 return
             elif self.state == STATE_PAUSED:
                 self.state = self._prev_state
                 return
+
+        if self.state == STATE_PAUSED:
+            if key == pygame.K_s:
+                self.sounds.toggle()   # the pause overlay advertises this
+            return
 
         if self.state == STATE_TITLE:
             if key in (pygame.K_RETURN, pygame.K_SPACE):
@@ -377,6 +407,7 @@ class Game:
         if self.player.lives <= 0:
             self.state = STATE_GAME_OVER
             self.sounds.play_game_over()
+            return   # don't let a same-frame carpet touch override Game Over
 
         # Trigger carpet if player reached the magic carpet area
         carpet = self.level.magic_carpet

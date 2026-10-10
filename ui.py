@@ -26,6 +26,7 @@ class UI:
         self.confetti_active = False
         self.home_carpet_trail = []   # trail particles for the home-screen carpet fly-in
         self.ascend_trail = []        # trail particles for the carpet-to-Heaven ascent
+        self._ascend_sky = None       # private copy of the heaven gradient (alpha is animated)
 
     # ------------------------------------------------------------------ #
     # HUD
@@ -90,6 +91,12 @@ class UI:
     # ------------------------------------------------------------------ #
     def add_popup(self, text, x, y, color=GOLD):
         self.score_popups.append([text, x, y, 90, color])
+
+    def clear_transient(self):
+        """Drop leftover popups/confetti so they don't leak into the next level or run."""
+        self.score_popups = []
+        self.confetti = []
+        self.confetti_active = False
 
     def update_popups(self):
         for p in self.score_popups:
@@ -1002,14 +1009,24 @@ class UI:
             self.ascend_trail = []
 
         # Sky brightens from daytime blue to golden heaven as Ollie rises
-        top = art.lerp_color((104, 194, 240), (150, 168, 232), t)
-        bot = art.lerp_color((205, 236, 246), (255, 242, 206), t)
-        surf.blit(art.vgradient(SCREEN_WIDTH, SCREEN_HEIGHT, top, bot), (0, 0))
+        # (cross-fade two cached gradients — building a fresh one every frame
+        # took ~100 ms each and was cached forever)
+        surf.blit(art.vgradient(SCREEN_WIDTH, SCREEN_HEIGHT,
+                                (104, 194, 240), (205, 236, 246)), (0, 0))
+        if self._ascend_sky is None:
+            self._ascend_sky = art.vgradient(SCREEN_WIDTH, SCREEN_HEIGHT,
+                                             (150, 168, 232), (255, 242, 206)).copy()
+        self._ascend_sky.set_alpha(int(255 * t))
+        surf.blit(self._ascend_sky, (0, 0))
 
         # Growing radiance at the very top — the light of Heaven
+        # (one cached full-size glow, scaled and faded per frame)
         glow_r = int(140 + t * 280)
-        surf.blit(art.radial_glow(glow_r, (255, 248, 210), int(50 + t * 130)),
-                  (SCREEN_WIDTH // 2 - glow_r, -glow_r + int(30 + t * 150)))
+        glow = pygame.transform.smoothscale(
+            art.radial_glow(ASCEND_GLOW_MAX_R, (255, 248, 210), ASCEND_GLOW_MAX_ALPHA),
+            (glow_r * 2, glow_r * 2))
+        glow.set_alpha(int(255 * (50 + t * 130) / ASCEND_GLOW_MAX_ALPHA))
+        surf.blit(glow, (SCREEN_WIDTH // 2 - glow_r, -glow_r + int(30 + t * 150)))
 
         # Clouds rushing DOWNWARD past the view → feels like rising
         cloud_imgs = ["cloud_a", "cloud_b", "cloud_c", "cloud_d"]

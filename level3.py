@@ -39,19 +39,56 @@ def _plat(x, y, w):
     return pygame.Rect(x, y, w, PLATFORM_THICK)
 
 
-def _cloud(surf, cx, cy, w, h, color=(255, 255, 255), alpha=255, shadow=False):
-    """A soft fluffy cloud centred at (cx, cy): a cluster of overlapping
-    ellipses.  Used for the floor, the platforms and the background sky."""
-    if shadow:
-        art.ground_shadow(surf, cx, int(cy + h * 0.45), int(w * 0.9), int(h * 0.4), 50)
+@functools.lru_cache(maxsize=64)
+def _cloud_sprite(w, h, color):
+    """Pre-rendered cloud (a cluster of overlapping ellipses), centred in a
+    2w x 2h surface.  Clouds only come in a handful of sizes, so drawing each
+    one once and blitting it is far cheaper than ~10 anti-aliased ellipses per
+    cloud per frame."""
+    spr = pygame.Surface((w * 2, h * 2), pygame.SRCALPHA)
+    cx, cy = w, h
     puffs = [(-w * 0.34, h * 0.10, w * 0.42, h * 0.62),
              (w * 0.34, h * 0.10, w * 0.42, h * 0.62),
              (-w * 0.12, -h * 0.18, w * 0.50, h * 0.78),
              (w * 0.16, -h * 0.12, w * 0.46, h * 0.74),
              (0, h * 0.20, w * 0.72, h * 0.56)]
-    col = color if alpha >= 255 else (*color, alpha)
     for ox, oy, ew, eh in puffs:
-        aadraw.ellipse(surf, col, (cx + ox - ew / 2, cy + oy - eh / 2, ew, eh))
+        # Each puff goes on its own layer and is alpha-blitted on: drawing them
+        # straight onto one transparent surface lets each soft edge punch a
+        # see-through seam into the puffs underneath.  The MAX fill restores the
+        # full colour on the soft edge pixels (gfxdraw darkens them against the
+        # transparent backdrop) while leaving their alpha alone.
+        layer = pygame.Surface(spr.get_size(), pygame.SRCALPHA)
+        aadraw.ellipse(layer, color, (cx + ox - ew / 2, cy + oy - eh / 2, ew, eh))
+        layer.fill((*color[:3], 0), special_flags=pygame.BLEND_RGBA_MAX)
+        spr.blit(layer, (0, 0))
+    return spr
+
+
+def _cloud(surf, cx, cy, w, h, color=(255, 255, 255), shadow=False):
+    """A soft fluffy cloud centred at (cx, cy).  Used for the floor, the
+    platforms and the throne."""
+    if shadow:
+        art.ground_shadow(surf, cx, int(cy + h * 0.45), int(w * 0.9), int(h * 0.4), 50)
+    surf.blit(_cloud_sprite(int(w), int(h), color), (int(cx) - int(w), int(cy) - int(h)))
+
+
+@functools.lru_cache(maxsize=1)
+def _god_rays():
+    """Screen-fixed god-rays overlay — static, so rendered once."""
+    rays = pygame.Surface((SCREEN_WIDTH, GROUND_Y), pygame.SRCALPHA)
+    origin = (int(SCREEN_WIDTH * 0.7), -60)
+    for i in range(7):
+        bx = i * (SCREEN_WIDTH // 6)
+        aadraw.polygon(rays, (255, 250, 220, 16),
+                       [origin, (bx - 70, GROUND_Y), (bx + 70, GROUND_Y)])
+    return rays
+
+
+def _on_screen(obj, cam_x, margin=200):
+    """True if obj is within `margin` px of the visible screen (skip drawing otherwise)."""
+    sx = obj.x - cam_x
+    return -obj.w - margin < sx < SCREEN_WIDTH + margin
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -332,7 +369,7 @@ class GodThrone:
 
         # Huge radiant glow behind everything
         pulse = 0.8 + 0.2 * math.sin(self.frame * 0.08)
-        surf.blit(art.radial_glow(190, (255, 244, 180), int(120 * pulse)),
+        surf.blit(art.radial_glow(190, (255, 244, 180), int(120 * pulse) // 4 * 4),
                   (cx - 190, sy + self.h // 2 - 190))
 
         # Radiating beams of light
@@ -496,6 +533,10 @@ class Level3:
         self.start_hint_timer = 240
         self.events = []
 
+        # Composed sky layer (see draw_background) and the warm tint it was built for
+        self._sky = None
+        self._sky_warm = -1
+
     # ────────────────────────────────────────────────────────────────────
     def update_camera(self, player_x):
         target = player_x - SCROLL_THRESH
@@ -530,25 +571,27 @@ class Level3:
     def draw_background(self, surf):
         cam = self.camera_x
 
-        # Dreamy sky: soft periwinkle up top fading to warm gold near the floor
-        surf.blit(art.vgradient(SCREEN_WIDTH, GROUND_Y + 30,
-                                (150, 168, 232), (255, 242, 206)), (0, 0))
-
-        # Heaven brightens the closer Ollie gets to God (right side glows gold)
+        # Dreamy sky: soft periwinkle up top fading to warm gold near the floor.
+        # Heaven brightens the closer Ollie gets to God (right side glows gold),
+        # with soft screen-fixed god-rays on top.  All three layers only change
+        # when the warm tint steps, so they are composed once per step and the
+        # frame costs a single opaque blit.
         prog = min(1.0, max(0.0, (cam + SCREEN_WIDTH * 0.5) / self.width))
-        if prog > 0.05:
-            warm = pygame.Surface((SCREEN_WIDTH, GROUND_Y + 30), pygame.SRCALPHA)
-            warm.fill((255, 236, 170, int(70 * prog)))
-            surf.blit(warm, (0, 0))
-
-        # Soft god-rays beaming down from the top (screen-fixed, very subtle)
-        rays = pygame.Surface((SCREEN_WIDTH, GROUND_Y), pygame.SRCALPHA)
-        origin = (int(SCREEN_WIDTH * 0.7), -60)
-        for i in range(7):
-            bx = i * (SCREEN_WIDTH // 6)
-            aadraw.polygon(rays, (255, 250, 220, 16),
-                           [origin, (bx - 70, GROUND_Y), (bx + 70, GROUND_Y)])
-        surf.blit(rays, (0, 0))
+        warm_a = int(70 * prog) if prog > 0.05 else 0
+        if self._sky is None or self._sky_warm != warm_a:
+            sky = art.vgradient(SCREEN_WIDTH, GROUND_Y + 30,
+                                (150, 168, 232), (255, 242, 206)).copy()
+            if warm_a:
+                warm = pygame.Surface(sky.get_size(), pygame.SRCALPHA)
+                warm.fill((255, 236, 170, warm_a))
+                sky.blit(warm, (0, 0))
+            sky.blit(_god_rays(), (0, 0))
+            self._sky, self._sky_warm = sky, warm_a
+        surf.blit(self._sky, (0, 0))
+        # Nothing else paints below the cloud floor, so clear it every frame —
+        # otherwise leftovers from the previous screen show through and the
+        # pause / game-over overlays darken it a little more each frame.
+        surf.fill((255, 242, 206), (0, GROUND_Y + 30, SCREEN_WIDTH, SCREEN_HEIGHT - GROUND_Y - 30))
 
         # Big radiant glow around God's world position (parallax-locked)
         god_sx = int(7536 - cam)
@@ -636,10 +679,15 @@ class Level3:
 
     def draw_characters(self, surf):
         cam = self.camera_x
+        # Only draw what is near the screen — most of the 8 000 px level isn't
         for coin in self.coins:
-            coin.draw(surf, cam)
+            if _on_screen(coin, cam):
+                coin.draw(surf, cam)
         for spirit in self.spirits:
-            spirit.draw(surf, cam)
+            if _on_screen(spirit, cam):
+                spirit.draw(surf, cam)
         for angel in self.angels:
-            angel.draw(surf, cam)
-        self.throne.draw(surf, cam)
+            if _on_screen(angel, cam):
+                angel.draw(surf, cam)
+        if _on_screen(self.throne, cam, 320):   # wide margin for its glow and beams
+            self.throne.draw(surf, cam)

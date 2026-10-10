@@ -159,6 +159,10 @@ class Player:
         # World left boundary
         if self.x < 0:
             self.x = 0
+        # World right boundary — platforms[0] is the ground and spans the whole level,
+        # so Ollie can't walk off the end of the world and vanish off-screen
+        if platforms and self.x > platforms[0].right - self.w:
+            self.x = float(platforms[0].right - self.w)
         # Safety floor — if Ollie falls off the bottom of the screen, snap back to ground
         if self.y > SCREEN_HEIGHT + 40:
             self.y = float(GROUND_Y - self.h)
@@ -179,7 +183,14 @@ class Player:
 
     def _collide_y(self, platforms):
         for p in platforms:
-            if not self.rect.colliderect(p):
+            # self.rect truncates y to whole pixels, which hid the fraction of a
+            # pixel Ollie sinks each frame from gravity — he only "landed" every
+            # other frame, so on_ground (and the run animation) flickered while
+            # standing.  Count that partial pixel as overlap.
+            r = self.rect
+            if self.y + self.h > r.bottom:
+                r.height += 1
+            if not r.colliderect(p):
                 continue
             if self.vy > 0:
                 # One-way: only land if Ollie's feet were at or above the platform

@@ -31,8 +31,16 @@ ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "
 # --------------------------------------------------------------------------- #
 # Colour sanitising — gfxdraw needs integer 0..255 components
 # --------------------------------------------------------------------------- #
+def _c(v):
+    v = int(v)
+    return 0 if v < 0 else 255 if v > 255 else v
+
+
 def _col(color):
-    return tuple(max(0, min(255, int(c))) for c in color)
+    # Called for every anti-aliased shape, so the common RGB case avoids a generator
+    if len(color) == 3:
+        return (_c(color[0]), _c(color[1]), _c(color[2]))
+    return tuple(_c(c) for c in color)
 
 
 def shade(color, factor):
@@ -206,9 +214,11 @@ def exists(rel):
 # --------------------------------------------------------------------------- #
 # Gradients & shadows
 # --------------------------------------------------------------------------- #
-@functools.lru_cache(maxsize=None)
+@functools.lru_cache(maxsize=32)
 def vgradient(width, height, top, bottom):
-    """Cached vertical gradient surface from `top` colour to `bottom`."""
+    """Cached vertical gradient surface from `top` colour to `bottom`.
+    Pass fixed colours only — each call with new colours builds (and caches) a
+    full surface, so animating the arguments per frame is very slow."""
     s = pygame.Surface((width, height)).convert() if pygame.display.get_surface() else pygame.Surface((width, height))
     for y in range(height):
         t = y / max(1, height - 1)
@@ -277,9 +287,10 @@ def panel(surf, rect, color, radius=8, shadow=True, outline=None, gloss=True):
         pygame.draw.rect(surf, outline, (x, y, w, h), 2, border_radius=radius)
 
 
-@functools.lru_cache(maxsize=None)
+@functools.lru_cache(maxsize=256)
 def radial_glow(radius, color, max_alpha=90):
-    """Soft circular glow surface (for lamps, hot hazards, magic, etc.)."""
+    """Soft circular glow surface (for lamps, hot hazards, magic, etc.).
+    Keep the arguments to a small set of values — see vgradient."""
     d = radius * 2
     s = pygame.Surface((d, d), pygame.SRCALPHA)
     for r in range(radius, 0, -1):

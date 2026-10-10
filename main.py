@@ -1,13 +1,13 @@
 import pygame
 import sys
-from constants import SCREEN_WIDTH, SCREEN_HEIGHT, TITLE, FPS
+from constants import SCREEN_WIDTH, SCREEN_HEIGHT, TITLE, FPS, WINDOW_FIT_W, WINDOW_FIT_H
 from game import Game
 
 
 def main():
     pygame.init()
     pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=512)
-    display = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.RESIZABLE)
+    display = pygame.display.set_mode(_window_size(), pygame.RESIZABLE)
     game_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
     pygame.display.set_caption(TITLE)
     pygame.display.set_icon(_make_icon())
@@ -17,6 +17,18 @@ def main():
 
     pygame.quit()
     sys.exit()
+
+
+def _window_size():
+    """Full game size if it fits on this screen, otherwise the largest 16:9
+    window that does (Game scales the picture to whatever the window is)."""
+    try:
+        dw, dh = pygame.display.get_desktop_sizes()[0]
+    except (pygame.error, IndexError):
+        return SCREEN_WIDTH, SCREEN_HEIGHT
+    # leave room for the title bar and taskbar
+    scale = min(1.0, (dw * WINDOW_FIT_W) / SCREEN_WIDTH, (dh * WINDOW_FIT_H) / SCREEN_HEIGHT)
+    return max(320, int(SCREEN_WIDTH * scale)), max(180, int(SCREEN_HEIGHT * scale))
 
 
 def _make_icon():

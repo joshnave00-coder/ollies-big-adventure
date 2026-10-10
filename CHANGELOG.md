@@ -5,6 +5,48 @@ Format: `## [version] — YYYY-MM-DD` with subsections Added / Changed / Fixed /
 
 ---
 
+## [0.8.1] — 2026-10-10
+
+Durability pass — no new gameplay; fixes found by running the game headlessly end to end.
+
+### Fixed
+- **Carpet-to-Heaven cutscene ran at ~5 fps** (the 3-second ride took 30–40 s) and leaked hundreds
+  of MB: it built and permanently cached a new full-screen gradient and a giant glow every frame.
+  It now cross-fades two cached gradients and scales one cached glow.
+- **Damaged `highscores.json` crashed the game at startup** (wrong shape, bad values, non-text
+  bytes). Loading now never raises, skips only the damaged entries, and sorts/trims the board.
+- **Saving a score could crash** if the folder wasn't writable; the save is now atomic
+  (temp file + replace) and a failed save is reported on stderr instead of ending the game.
+- **Ollie could walk off the right end of every level** and fall forever off-screen. The world
+  now has a right-hand wall.
+- **Level 1 dead end without the water bottle**: the bottle is easy to hop over, and without it
+  the carpet never appears. A sign at the end now tells the player to go back for it.
+- **Level 3: the strip under the cloud floor was never painted** — it showed leftovers from the
+  previous screen and turned permanently black after pausing.
+- **Ollie was "airborne" every other frame while standing** (`on_ground` flickered because the
+  collision rect dropped the sub-pixel sink from gravity), so the run animation stuttered.
+- **Pause screen said "Press S to toggle sound" but S did nothing** while paused. It works now.
+- **Losing the last life on the same frame as touching the carpet** skipped Game Over and flew
+  home with 0 lives.
+- **Hawk divide-by-zero** when exactly on top of Ollie.
+- Leftover score popups and confetti no longer carry over into the next level or a restart.
+
+### Changed
+- **Level 2 and Level 3 draw 2–5× faster** (same picture): the wallpaper wall and the Heaven sky
+  are composed once instead of per frame, clouds are pre-rendered sprites, and off-screen
+  enemies, coins, angels and the throne are no longer drawn.
+- **The window now scales the picture to fit** (letterboxed) when resized or maximised, and
+  starts smaller on screens that can't fit 1280×720. Previously a small window cropped the game.
+- **The game pauses itself when the window loses focus or is minimised.**
+- `art.vgradient` / `art.radial_glow` caches are now bounded.
+
+### Added
+- `tests/test_durability.py` — headless regression tests for all of the above
+  (`python -m unittest discover -s tests`). They redirect the leaderboard to a temp folder.
+- `requirements.txt`.
+
+---
+
 ## [0.8.0] — 2026-06-13
 
 ### Added — Level 3: Ollie Goes to Heaven

@@ -330,7 +330,7 @@ class Hawk(NPC):
         self._respawn_if_far(player)
 
         dist = math.hypot(player.x - self.x, player.y - self.y)
-        if dist < HAWK_CHASE_RAD:
+        if 0 < dist < HAWK_CHASE_RAD:   # dist == 0 would divide by zero below
             dx = player.x - self.x
             dy = player.y - self.y
             self.vx = (dx / dist) * HAWK_CHASE_SPD

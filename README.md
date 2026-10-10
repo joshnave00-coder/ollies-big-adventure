@@ -2,7 +2,8 @@
 
 A cheerful, kid-friendly 2D platformer built with Python 3 and Pygame. You play as **Ollie**, an
 apricot-colored poodle puppy who got lost. Help him cross a sunny outdoor world to find his
-**magic carpet** and fly home — then sniff through the whole **house** to find his **big bone!**
+**magic carpet** and fly home — then sniff through the whole **house** to find his **big bone**,
+and finally ride the carpet up to **Heaven**.
 
 Made by a dad and his 7-year-old daughter. The cast (Ollie, Lily, Leia, the campers, and every
 critter) is original, hand-coded art; the scenery uses free [Kenney](https://kenney.nl) CC0 art.
@@ -13,11 +14,12 @@ critter) is original, hand-coded art; the scenery uses free [Kenney](https://ken
 
 ```bash
 cd "Ollie's Big Adventure"
-pip install pygame      # Pygame 2.x — the only dependency
+python -m pip install -r requirements.txt   # Pygame 2.x — the only dependency
 python main.py
 ```
 
-Python 3.10+ recommended. No other downloads needed — the environment art ships in
+Python 3.10+ recommended. If you have more than one Python installed, use the same one for both
+commands (on Windows, `py -m pip install -r requirements.txt` then `py main.py`). No other downloads needed — the environment art ships in
 `assets/img/`, and all sounds are generated in code.
 
 ---
@@ -28,7 +30,9 @@ You can also read this **inside the game**: on the start screen, press **H — H
 
 ### 🎯 The goal
 1. **Walk RIGHT** through the outdoor world to find Ollie's **Magic Carpet**, then fly home.
-2. Inside the house, explore the rooms to find Ollie's **BIG BONE**. That's the win!
+2. Inside the house, explore the rooms to find Ollie's **BIG BONE**.
+3. Ride the carpet up to **Heaven**: collect coins, get past the Cloud Spirits, climb the cloud
+   stairs, and reach the golden throne. That's the win!
 
 ### 🎮 How to move
 | Key | What it does |
@@ -63,7 +67,7 @@ encouragement — no points needed.
 
 ## Features
 
-- **Two full levels** — a 7 000 px outdoor adventure and an 8 000 px, 8-room furnished house
+- **Three full levels** — a 7 000 px outdoor adventure, an 8 000 px sky level (Heaven), and an 8 000 px, 8-room furnished house
   (entry, living room, hallway, kitchen, dining room, play room, corridor, master bedroom).
 - **Ollie & every animal are original procedural art** — drawn in code, anti-aliased, with soft
   contact shadows. The human NPCs (dog catcher, campers, Lily & Leia) and the homecoming family
@@ -88,7 +92,9 @@ encouragement — no points needed.
 | Lily / Leia gives a treat | +20 |
 | Catch a bird | +25 |
 | Each remaining life at the end of Level 1 | +100 |
-| Find the big bone (Level 2 win) | +500 |
+| Find the big bone (Level 2) | +500 |
+| Each coin in Heaven (Level 3) | +25 |
+| Reach the throne (Level 3 win) | +1000 |
 
 ---
 
@@ -110,6 +116,8 @@ Ollie's Big Adventure/
 │                     FriendlyGirl (Lily/Leia), WaterBottle, MagicCarpet, Angel
 ├── level.py         Level 1 — layout, camera, parallax background, NPC instances
 ├── level2.py        Level 2 — interior house; HouseCat, Roomba, BoneCrate, Level2
+├── level3.py        Level 3 — Heaven; Coin, CloudSpirit, SingingAngel, GodThrone, Level3
+├── tests/           Headless regression tests (python -m unittest discover -s tests)
 ├── ui.py            UI — HUD, popups, title, How-to-Play, home & other screens
 ├── art.py           Rendering toolkit — anti-aliased primitives, CC0 image loader,
 │                     gradients, soft shadows (added in v0.6)
@@ -125,6 +133,12 @@ Ollie's Big Adventure/
 ---
 
 ## For Developers
+
+Run the regression tests (no window opens, and your real `highscores.json` is not touched):
+
+```bash
+python -m unittest discover -s tests -v
+```
 
 [`CLAUDE.md`](CLAUDE.md) is the authoritative deep-dive: architecture, the one-way Level→Game
 **event bus**, the state machine, per-character internals, the **rendering rule** (draw character

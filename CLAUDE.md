@@ -13,7 +13,7 @@ It answers "where does X live?", "how does Y work?", and "what must I not break?
 | Framework | Pygame 2.x |
 | Window | 1280 × 720, 60 FPS |
 | Entry point | `main.py` |
-| Current version | 0.8.0 |
+| Current version | 0.8.1 |
 | Level 1 width | 7 000 px (outdoor scrolling level) |
 | Level 2 width | 8 000 px (interior house level) |
 | Level 3 width | 8 000 px (sky / Heaven scrolling level) |
@@ -40,6 +40,8 @@ art.py           Rendering toolkit: aadraw AA primitives, CC0 image loader/cache
 leaderboard.py   High-score persistence (highscores.json, top 5 entries)
 sounds.py        SoundManager — all sounds synthesised at runtime, no audio files
 constants.py     Every magic number and string in the project
+tests/           Headless regression tests — run: python -m unittest discover -s tests
+requirements.txt pygame>=2.1,<3
 assets/img/      CC0 Kenney art: ground/ sky/ foliage/ pattern/ char/ (human NPC poses)
 assets/sounds/   Reserved for future .wav/.ogg files
 assets/CREDITS.txt  CC0 attribution for the bundled art packs
@@ -527,6 +529,23 @@ a timer-based `interact_cooldown`.
 ---
 
 ## What Not to Break
+
+- **Run the tests after any change**: `python -m unittest discover -s tests` (use the Python that
+  has pygame — on this PC that is `py`, not `python`). They run headlessly and redirect
+  `leaderboard._SCORES_FILE` to a temp folder; never let a test write the real `highscores.json`.
+- **Never pass per-frame-changing arguments to `art.vgradient` / `art.radial_glow`** (or any
+  `lru_cache`d art helper). Each new argument builds and caches a whole surface — this is what
+  made the ascend cutscene run at 5 fps. Animate by blending/scaling a fixed cached surface instead.
+- **Don't draw overlapping anti-aliased shapes straight onto one transparent surface** — gfxdraw's
+  soft edges overwrite alpha and leave seams. See `_cloud_sprite` in `level3.py` for the pattern.
+- **Every screen must paint the whole 1280×720 frame** — the game surface is never cleared, so
+  any unpainted strip shows the previous screen and darkens under the pause overlay.
+- **World right edge**: `Player.move_and_collide()` clamps x to `platforms[0].right`, so
+  `platforms[0]` must span the full level width (it already must for the no-gaps rule).
+- **`Game._present()`** scales the game surface to the window (letterboxed). Always draw to
+  `self.screen` (fixed 1280×720), never to the window surface.
+- **`leaderboard.load_scores()` / `save_score()` must never raise** — they run at startup and at
+  the high-score hand-off.
 
 - **Ground platform**: `level.platforms[0]` must be a single platform at `y == GROUND_Y`
   covering `x=0` to `x=level.width`. Do not split it — gaps cause Ollie to fall through.

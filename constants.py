@@ -2,6 +2,9 @@
 SCREEN_WIDTH = 1280
 SCREEN_HEIGHT = 720
 FPS = 60
+# Largest share of the desktop the starting window may use (room for title bar / taskbar)
+WINDOW_FIT_W = 0.94
+WINDOW_FIT_H = 0.86
 TITLE = "Ollie's Big Adventure"
 
 # Colors
@@ -157,6 +160,8 @@ STATE_HEAVEN_WIN        = "heaven_win"        # "Ollie's Home in Heaven" ending 
 LEVEL3_WIDTH = 8000
 ASCEND_DURATION          = 200   # frames for the carpet-to-heaven rise (~3.3 s)
 HEAVEN_CELEBRATE_DURATION = 360  # frames for the touch-God cutscene (6 s)
+ASCEND_GLOW_MAX_R     = 420      # final radius of the growing light during the ascent
+ASCEND_GLOW_MAX_ALPHA = 180      # final brightness of that light
 
 # Level 3 scoring
 SCORE_COIN   = 25     # each coin of "money" Ollie collects

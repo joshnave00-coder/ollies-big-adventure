@@ -305,6 +305,23 @@ class Level:
         if -300 < slide_sx < SCREEN_WIDTH + 300:
             self._draw_slide(surf, slide_sx)
 
+        # The carpet only appears once Ollie has his water bottle.  If he got past
+        # the slide without it (the bottle is easy to hop over), the end of the
+        # level is empty — so point the way back instead of leaving a dead end.
+        if self.slide_triggered and not self.water_bottle.collected:
+            cx = int(self.magic_carpet.x - cam) + CARPET_SIZE[0] // 2
+            if -300 < cx < SCREEN_WIDTH + 300:
+                lines = [_font("Arial", 22, True).render("Ollie needs his water bottle!", True, WHITE),
+                         _font("Arial", 18, True).render("←  Go back and grab it", True, LIGHT_BLUE)]
+                w = max(l.get_width() for l in lines) + 28
+                top = GROUND_Y - 150
+                bg = pygame.Surface((w, 72), pygame.SRCALPHA)
+                bg.fill(HUD_BG)
+                surf.blit(bg, (cx - w // 2, top))
+                pygame.draw.rect(surf, LIGHT_BLUE, (cx - w // 2, top, w, 72), 2, border_radius=8)
+                for i, l in enumerate(lines):
+                    surf.blit(l, (cx - l.get_width() // 2, top + 9 + i * 32))
+
         # Walk-right beginner hint (first 5 seconds, only when near start)
         if self.start_hint_timer > 0 and self.camera_x < 200:
             alpha = 255 if (self.start_hint_timer // 20) % 2 == 0 else 100
