@@ -13,12 +13,14 @@ It answers "where does X live?", "how does Y work?", and "what must I not break?
 | Framework | Pygame 2.x |
 | Window | 1280 × 720, 60 FPS |
 | Entry point | `main.py` |
-| Current version | 0.8.1 |
+| Current version | 0.8.2 |
 | Level 1 width | 7 000 px (outdoor scrolling level) |
 | Level 2 width | 8 000 px (interior house level) |
 | Level 3 width | 8 000 px (sky / Heaven scrolling level) |
 | Art style | Hybrid: CC0 stock art for environment + human NPCs (`char/`); Ollie & all animals/heavenly beings stay procedural |
 | Audio | Programmatic synthesis via `sounds.py`; no audio files |
+| Input | Keyboard, plus any gamepad (mapped onto the keyboard path in `Game._pad_event` / `_read_input`) |
+| Timing | Fixed 1/60 s logic steps (`Game._advance`) — independent of draw rate |
 
 ---
 
@@ -62,9 +64,12 @@ stay 100% procedural so the heart of the game is the family's own.
 Furniture uses `art.panel(rect, color, radius=...)` for a rounded, gradient-shaded, drop-shadowed
 look. `art.ground_shadow(...)` adds the soft contact shadow under procedural ground sprites.
 
-**Font rule:** never call `pygame.font.SysFont()` directly inside a `draw()` method.
-Each module that needs fonts has a module-level `_font(name, size, bold)` helper decorated
-with `@functools.lru_cache(maxsize=None)`.  `UI.__init__` also pre-creates the six common
+**Font rule:** never call `pygame.font.SysFont()` anywhere except `art.font(size, bold)` — the one
+cached helper, which resolves `FONT_FAMILIES` (Arial, then fallbacks) so the game also works
+where Arial is missing. Each module's `_font(name, size, bold)` delegates to it (`name` is
+ignored). Text that sits inside a fixed panel should use `art.fit_text(text, size, bold, color,
+max_w)`, which shrinks to fit. Don't use arrow or other symbol glyphs in text that must be read
+(some fallback fonts lack them). Smallest sizes: `FONT_SIZE_XS` (UI) and `FONT_SIZE_LABEL` (world).  `UI.__init__` also pre-creates the six common
 sizes (`font_lg`, `font_md`, `font_sm`, `font_xs`, `font_xl`) for use in all screen methods.
 
 ---
@@ -408,13 +413,18 @@ To add a sound:
 2. Add a `play_mysound(self)` method that calls `self._play('key')`.
 3. Call it from `game.py` at the appropriate event.
 
-Toggle mute: `sounds.toggle()` or press S on the title screen.
+Toggle mute: `sounds.toggle()` (S on the title, How-to-Play and pause screens).
+Volume: `sounds.change_volume(±1)` (`-` / `+` on the same screens). `sounds.status_text()` is the
+line those screens show; `sounds.available` is False when no sound could be built.
 
 ---
 
 ## Leaderboard (leaderboard.py)
 
-Persists top 5 scores to `highscores.json` next to the .py files.
+Persists top 5 scores to a per-user file, `leaderboard._SCORES_FILE`
+(`%APPDATA%\OlliesBigAdventure\highscores.json` on Windows). The `highscores.json` next to the
+.py files (`_LEGACY_FILE`) is read-only: it is the starting board until the first save and must
+never be written by the game or by tests.
 - `lb.load_scores()` → `[(score, initials), ...]` sorted descending
 - `lb.save_score(score, initials)` → updated list
 - `lb.is_high_score(score)` → bool
@@ -529,6 +539,13 @@ a timer-based `interact_cooldown`.
 ---
 
 ## What Not to Break
+
+- **Fixed timestep**: `Game.run()` calls `_advance(dt)`, which runs `_update()` zero or more times
+  per drawn frame. Anything that should move at game speed must change in `_update()` (or code it
+  calls), never inside a `draw_*` method — draw-time changes slow down on slow machines.
+  `self.frame` counts logic steps, not drawn frames.
+- **One input path**: gamepad input is translated to key events / held keys in `game.py`. Don't
+  read the joystick anywhere else, and keep `Player.handle_input` keyboard-shaped.
 
 - **Run the tests after any change**: `python -m unittest discover -s tests` (use the Python that
   has pygame — on this PC that is `py`, not `python`). They run headlessly and redirect

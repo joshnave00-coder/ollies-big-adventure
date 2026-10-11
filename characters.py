@@ -9,7 +9,7 @@ from constants import *
 
 @functools.lru_cache(maxsize=None)
 def _font(name: str, size: int, bold: bool = False) -> pygame.font.Font:
-    return pygame.font.SysFont(name, size, bold=bold)
+    return art.font(size, bold)   # `name` is kept for call-site readability only
 
 
 # ---------------------------------------------------------------------------
@@ -92,8 +92,8 @@ class Camper(NPC):
         badge_surf = pygame.Surface((badge_r * 2, badge_r * 2), pygame.SRCALPHA)
         aadraw.circle(badge_surf, (80, 200, 80, 70), (badge_r, badge_r), badge_r)
         surf.blit(badge_surf, (sx + 6 - badge_r, sy - 46 - badge_r))
-        lbl = _font("Arial", 10, True).render("SAFE", True, (40, 160, 40))
-        surf.blit(lbl, (sx + 6 - lbl.get_width() // 2, sy - 52))
+        lbl = _font("Arial", FONT_SIZE_LABEL, True).render("SAFE", True, (30, 130, 30))
+        surf.blit(lbl, (sx + 6 - lbl.get_width() // 2, sy - 46 - lbl.get_height() // 2))
 
         # ---- Campfire (a proper stone-ring fire to Ollie's left) ----
         fx, fy = sx - 28, sy + 50
@@ -568,7 +568,7 @@ class FriendlyGirl(NPC):
             aadraw.circle(surf, (150, 100, 50), (cx + 24, top + 20), 6, 1)
 
         # Name tag above her head
-        label = _font("Arial", 12, True).render(self.name, True, PURPLE)
+        label = _font("Arial", FONT_SIZE_LABEL, True).render(self.name, True, PURPLE)
         tag_bg = pygame.Surface((label.get_width() + 10, label.get_height() + 4), pygame.SRCALPHA)
         tag_bg.fill((255, 255, 255, 180))
         surf.blit(tag_bg, (cx - tag_bg.get_width() // 2, top - 20))

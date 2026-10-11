@@ -42,7 +42,9 @@ You can also read this **inside the game**: on the start screen, press **H — H
 | **P** or **Esc** | Pause / resume |
 | **Enter / Space** | Start the game · confirm on menus |
 | **H** | Open the How-to-Play screen (from the title) |
-| **S** | Turn sound **ON / OFF** |
+| **S** | Turn sound **ON / OFF** (title, How-to-Play and pause screens) |
+| **-** / **+** | Volume down / up (same screens) |
+| **Gamepad** | Stick or d-pad to walk, any face button to jump or confirm, Start to pause |
 
 ### 💚 Friends — go say hi!
 - **Campers** sit by their **SAFE** tents. Walk up to **pet** them, then they give a **treat**.
@@ -78,7 +80,7 @@ encouragement — no points needed.
 - **Kid-friendly How-to-Play screen** reachable from the title, with real creature icons.
 - **Gentle difficulty** — every enemy is slower than the player; a 2-second mercy window after hits.
 - **Score popups, an encouraging Angel, confetti celebrations**, and a **top-5 leaderboard**
-  saved to `highscores.json`.
+  saved per user (see Settings).
 - **No asset hunting** — programmatic sound effects, bundled environment art, one `pip install`.
 
 ---
@@ -100,8 +102,13 @@ encouragement — no points needed.
 
 ## Settings
 
-- **Sound on/off** — press **S** on the title screen or the How-to-Play screen. The current
-  state is shown in the corner.
+- **Sound on/off** — press **S** on the title, How-to-Play or pause screen. The current
+  state is shown on screen.
+- **Volume** — press **-** or **+** on the same screens.
+- **High scores** are saved per user, outside the game folder: `%APPDATA%\OlliesBigAdventure\`
+  on Windows, `~/Library/Application Support/OlliesBigAdventure/` on macOS,
+  `~/.local/share/OlliesBigAdventure/` on Linux. The `highscores.json` in the game folder is
+  only the starting board; the game never changes it.
 
 ---
 

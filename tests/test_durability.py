@@ -1,4 +1,4 @@
-"""Regression tests for the durability fixes (0.8.1).
+"""Regression tests for the durability fixes (0.8.1 and 0.8.2).
 
 Runs the real Game headlessly (no window, no sound device) and drives it with
 injected key presses.  The leaderboard is redirected to a temp folder, so the
@@ -26,6 +26,7 @@ from game import Game  # noqa: E402
 
 _TMP = None
 _REAL_SCORES_FILE = lb._SCORES_FILE
+_REAL_LEGACY_FILE = lb._LEGACY_FILE
 _real_get_pressed = pygame.key.get_pressed
 
 
@@ -45,6 +46,7 @@ def setUpModule():
     global _TMP
     _TMP = tempfile.mkdtemp(prefix="ollie_tests_")
     lb._SCORES_FILE = os.path.join(_TMP, "highscores.json")
+    lb._LEGACY_FILE = os.path.join(_TMP, "no_legacy_file.json")
     pygame.key.get_pressed = lambda: KEYS
     pygame.init()
     pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -53,6 +55,7 @@ def setUpModule():
 def tearDownModule():
     pygame.key.get_pressed = _real_get_pressed
     lb._SCORES_FILE = _REAL_SCORES_FILE
+    lb._LEGACY_FILE = _REAL_LEGACY_FILE
     pygame.quit()
     shutil.rmtree(_TMP, ignore_errors=True)
 
@@ -83,7 +86,8 @@ def jump_to_level(game, n):
 class LeaderboardTests(unittest.TestCase):
     def setUp(self):
         for name in os.listdir(_TMP):
-            os.remove(os.path.join(_TMP, name))
+            path = os.path.join(_TMP, name)
+            shutil.rmtree(path) if os.path.isdir(path) else os.remove(path)
 
     def _write(self, content, mode="w"):
         with open(lb._SCORES_FILE, mode) as f:
@@ -121,7 +125,10 @@ class LeaderboardTests(unittest.TestCase):
 
     def test_unwritable_folder_does_not_crash_the_game(self):
         good = lb._SCORES_FILE
-        lb._SCORES_FILE = os.path.join(_TMP, "missing_folder", "highscores.json")
+        # A plain file where the save folder should be: it cannot be created or written
+        with open(os.path.join(_TMP, "blocker"), "w") as f:
+            f.write("x")
+        lb._SCORES_FILE = os.path.join(_TMP, "blocker", "highscores.json")
         try:
             g = new_game()
             press(g, pygame.K_RETURN)
@@ -135,6 +142,31 @@ class LeaderboardTests(unittest.TestCase):
             self.assertEqual(g.lb_scores, [(99, "AAA")])   # still shown this session
         finally:
             lb._SCORES_FILE = good
+
+
+    def test_scores_are_saved_per_user_not_in_the_code_folder(self):
+        project = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.assertNotEqual(os.path.dirname(_REAL_SCORES_FILE), project)
+        self.assertEqual(os.path.dirname(_REAL_LEGACY_FILE), project)
+
+    def test_old_scores_carry_over_and_the_old_file_is_never_written(self):
+        legacy = os.path.join(_TMP, "old_highscores.json")
+        old = json.dumps([{"score": 1235, "initials": "LHN"}, {"score": 945, "initials": "LIL"}])
+        with open(legacy, "w") as f:
+            f.write(old)
+        good_legacy = lb._LEGACY_FILE
+        lb._SCORES_FILE = os.path.join(_TMP, "new_place", "highscores.json")   # folder not made yet
+        lb._LEGACY_FILE = legacy
+        try:
+            self.assertEqual(lb.load_scores(), [(1235, "LHN"), (945, "LIL")])
+            lb.save_score(1000, "NEW")
+            self.assertEqual(lb.load_scores(), [(1235, "LHN"), (1000, "NEW"), (945, "LIL")])
+            self.assertTrue(os.path.isfile(lb._SCORES_FILE))
+            with open(legacy) as f:
+                self.assertEqual(f.read(), old)
+        finally:
+            lb._SCORES_FILE = os.path.join(_TMP, "highscores.json")
+            lb._LEGACY_FILE = good_legacy
 
 
 class WorldEdgeTests(unittest.TestCase):
@@ -287,6 +319,227 @@ class GameFlowTests(unittest.TestCase):
             press(g, key)
         self.assertEqual(g.state, STATE_TITLE)
         self.assertEqual(lb.load_scores()[0][1], "OLY")
+
+
+class FrameRateTests(unittest.TestCase):
+    """Game speed must not depend on how fast the screen draws."""
+
+    def _steps(self, g, frame_ms, seconds):
+        total, t = 0, 0.0
+        while t < seconds * 1000:
+            total += g._advance(frame_ms)
+            t += frame_ms
+        return total
+
+    def test_normal_frames_run_exactly_one_step(self):
+        g = new_game()
+        self.assertEqual([g._advance(ms) for ms in (16, 17, 17, 16, 18, 15)], [1] * 6)
+
+    def test_slow_drawing_still_runs_sixty_steps_a_second(self):
+        for frame_ms in (33.3, 50, 80):          # 30, 20 and 12.5 fps
+            with self.subTest(frame_ms=frame_ms):
+                self.assertAlmostEqual(self._steps(new_game(), frame_ms, 2), 120, delta=3)
+
+    def test_a_long_stall_does_not_fast_forward_the_game(self):
+        g = new_game()
+        self.assertEqual(g._advance(5000), MAX_CATCHUP_STEPS)
+        self.assertEqual(g._advance(16), 1)
+
+    def test_cutscene_takes_the_same_real_time_at_20_fps(self):
+        g = new_game()
+        jump_to_level(g, 2)
+        g.state = STATE_LEVEL2_WIN
+        press(g, pygame.K_RETURN)
+        elapsed = 0
+        while g.state == STATE_ASCEND and elapsed < 20000:
+            g._advance(50)
+            elapsed += 50
+        self.assertEqual(g.state, STATE_LEVEL3)
+        self.assertAlmostEqual(elapsed, ASCEND_DURATION * 1000 / FPS, delta=100)
+
+    def test_ollie_covers_the_same_ground_at_60_and_20_fps(self):
+        distances = []
+        for frame_ms in (1000 / 60, 50):
+            g = new_game()
+            press(g, pygame.K_RETURN)
+            g.player.invincible = 10 ** 6
+            g._advance(1000 / 60)                # settle on the ground
+            start = g.player.x
+            KEYS.down = {pygame.K_RIGHT}
+            self._steps(g, frame_ms, 1)
+            distances.append(g.player.x - start)
+        self.assertAlmostEqual(distances[0], PLAYER_SPEED * FPS, delta=PLAYER_SPEED * 2)
+        self.assertAlmostEqual(distances[0], distances[1], delta=PLAYER_SPEED * 3)
+
+
+class _FakePad:
+    """Minimal joystick: one stick, one d-pad, ten buttons."""
+    def __init__(self):
+        self.axis, self.hat, self.buttons = 0.0, (0, 0), set()
+
+    def get_numaxes(self):
+        return 2
+
+    def get_numhats(self):
+        return 1
+
+    def get_numbuttons(self):
+        return 10
+
+    def get_axis(self, i):
+        return self.axis if i == 0 else 0.0
+
+    def get_hat(self, i):
+        return self.hat
+
+    def get_button(self, b):
+        return b in self.buttons
+
+
+class GamepadTests(unittest.TestCase):
+    def _pad_press(self, g, button):
+        g._handle_event(g._pad_event(pygame.event.Event(pygame.JOYBUTTONDOWN, button=button)))
+
+    def test_stick_walks_and_button_jumps(self):
+        g = new_game()
+        pad = _FakePad()
+        g._pads[1] = pad
+        self._pad_press(g, PAD_JUMP_BUTTONS[0])           # confirm on the title screen
+        self.assertEqual(g.state, STATE_PLAYING)
+        step(g, 3)
+        x0 = g.player.x
+        pad.axis = 0.2                                    # stick drift inside the dead zone
+        step(g, 10)
+        self.assertEqual(g.player.x, x0)
+        pad.axis = 1.0
+        step(g, 10)
+        self.assertEqual(g.player.x, x0 + 10 * PLAYER_SPEED)
+        pad.axis, pad.hat = 0.0, (-1, 0)                  # d-pad left
+        step(g, 5)
+        self.assertEqual(g.player.x, x0 + 5 * PLAYER_SPEED)
+        pad.hat = (0, 0)
+        pad.buttons = {PAD_JUMP_BUTTONS[0]}
+        step(g, 2)
+        self.assertLess(g.player.vy, 0)
+
+    def test_start_button_pauses_and_unplugging_pauses(self):
+        g = new_game()
+        g._pads[7] = _FakePad()
+        press(g, pygame.K_RETURN)
+        self._pad_press(g, PAD_PAUSE_BUTTONS[1])
+        self.assertEqual(g.state, STATE_PAUSED)
+        self._pad_press(g, PAD_PAUSE_BUTTONS[1])
+        self.assertEqual(g.state, STATE_PLAYING)
+        g._pad_event(pygame.event.Event(pygame.JOYDEVICEREMOVED, instance_id=7))
+        self.assertEqual(g.state, STATE_PAUSED)
+        self.assertEqual(g._pads, {})
+        step(g, 3)                                        # no pad left: must not raise
+
+    def test_dpad_enters_initials(self):
+        g = new_game()
+        press(g, pygame.K_RETURN)
+        g.player.score, g.player.lives = 50, 0
+        step(g, 2)
+        self._pad_press(g, 0)                             # game over -> initials
+        self.assertEqual(g.state, STATE_ENTER_INITIALS)
+        for value in ((0, 1), (0, 0), (1, 0), (0, -1)):   # up, release, right, down
+            g._handle_event(g._pad_event(pygame.event.Event(pygame.JOYHATMOTION, value=value)))
+        self.assertEqual("".join(g.initials), "BZA")
+        self._pad_press(g, 0)
+        self.assertIn((50, "BZA"), lb.load_scores())
+
+
+class SoundAndTextTests(unittest.TestCase):
+    def test_volume_keys_step_and_clamp(self):
+        g = new_game()
+        self.assertEqual(g.sounds.volume, VOLUME_DEFAULT)
+        press(g, pygame.K_EQUALS)                         # already at the top
+        self.assertEqual(g.sounds.volume, 1.0)
+        for _ in range(3):
+            press(g, pygame.K_MINUS)
+        self.assertAlmostEqual(g.sounds.volume, 0.7)
+        self.assertTrue(all(abs(s.get_volume() - 0.7) < 0.02 for s in g.sounds._sounds.values()))
+        self.assertIn("70%", g.sounds.status_text())
+        for _ in range(20):
+            press(g, pygame.K_KP_MINUS)
+        self.assertEqual(g.sounds.volume, 0.0)
+        press(g, pygame.K_RETURN)
+        press(g, pygame.K_EQUALS)                         # not a volume key during play
+        self.assertEqual(g.sounds.volume, 0.0)
+        press(g, pygame.K_p)
+        press(g, pygame.K_PLUS)
+        self.assertAlmostEqual(g.sounds.volume, 0.1)
+
+    def test_no_audio_device_is_reported_not_faked(self):
+        import sounds
+
+        def broken(self):
+            raise pygame.error("no audio device")
+
+        real = sounds.SoundManager._build_all
+        sounds.SoundManager._build_all = broken
+        try:
+            mgr = sounds.SoundManager()
+        finally:
+            sounds.SoundManager._build_all = real
+        self.assertFalse(mgr.enabled)
+        mgr.toggle()
+        self.assertFalse(mgr.enabled)                     # cannot be switched "ON" while silent
+        self.assertIn("not available", mgr.status_text())
+        mgr.change_volume(-1)
+        mgr.play_jump()                                   # all still safe to call
+
+    def test_score_popups_fade_out(self):
+        g = new_game()
+
+        def brightest(timer):
+            g.ui.score_popups = [["+25 Bird!", 300, 300, timer, (255, 255, 255)]]
+            g.screen.fill((0, 0, 0))
+            g.ui.draw_popups(0)
+            return max(g.screen.get_at((x, y))[0] for x in range(250, 350, 2)
+                       for y in range(298, 325, 2))
+
+        self.assertGreater(brightest(90), 200)
+        self.assertLess(brightest(20), brightest(90) // 2)
+        self.assertLess(brightest(2), 20)
+
+    def test_hot_slide_popup_matches_what_happened(self):
+        for invincible, lives_lost, word in ((0, 1, "Ouch"), (60, 0, "Hot")):
+            with self.subTest(invincible=invincible):
+                g = new_game()
+                press(g, pygame.K_RETURN)
+                g.player.invincible = invincible
+                g.player.x = g.level.slide_rect.x - 2.0
+                KEYS.down = {pygame.K_RIGHT}
+                step(g, 2)
+                self.assertEqual(3 - g.player.lives, lives_lost)
+                self.assertTrue(any(word in p[0] for p in g.ui.score_popups))
+                self.assertFalse(lives_lost == 0 and any("Ouch" in p[0] for p in g.ui.score_popups))
+
+    def test_text_fits_and_draws_without_arial(self):
+        import constants
+        real = constants.FONT_FAMILIES
+        constants.FONT_FAMILIES = "no-such-font-installed"
+        art.font.cache_clear()
+        try:
+            wide = "A very long label that would never fit in a small panel"
+            self.assertLessEqual(art.fit_text(wide, 28, True, (0, 0, 0), 200).get_width(), 200)
+            self.assertGreater(art.font(18).render("Ollie", True, (0, 0, 0)).get_width(), 10)
+            g = new_game()                                # builds every UI font from the fallback
+            for key in (None, pygame.K_h, pygame.K_h, pygame.K_RETURN, pygame.K_p):
+                if key is not None:
+                    press(g, key)
+                step(g, 2, draw=True)
+            self.assertEqual(g.state, STATE_PAUSED)
+        finally:
+            constants.FONT_FAMILIES = real
+            art.font.cache_clear()
+
+    def test_smallest_text_sizes(self):
+        self.assertGreaterEqual(FONT_SIZE_XS, 16)
+        self.assertGreaterEqual(FONT_SIZE_LABEL, 14)
+        g = new_game()
+        self.assertGreaterEqual(g.ui.font_xs.get_height(), art.font(16).get_height())
 
 
 class RenderingTests(unittest.TestCase):

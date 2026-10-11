@@ -5,6 +5,25 @@ FPS = 60
 # Largest share of the desktop the starting window may use (room for title bar / taskbar)
 WINDOW_FIT_W = 0.94
 WINDOW_FIT_H = 0.86
+
+# Game logic always advances in fixed 1/FPS steps, however fast the screen draws
+STEP_MS           = 1000.0 / FPS
+STEP_SNAP_MS      = 4.0    # frame times this close to one step count as exactly one (no judder)
+MAX_CATCHUP_STEPS = 5      # most logic steps per drawn frame (keeps real-time down to 12 fps)
+
+# Text — Arial first, then fonts with the same letter widths, then anything sans-serif
+FONT_FAMILIES   = "arial,liberationsans,arimo,helvetica,nimbussans,dejavusans,freesans"
+FONT_SIZE_XS    = 16       # smallest UI text (HUD labels, captions, hints)
+FONT_SIZE_LABEL = 14       # smallest in-world label (name tags, SAFE badge)
+
+# Sound volume (0.0–1.0), changed with - / + on the title, How-to-Play and pause screens
+VOLUME_DEFAULT = 1.0
+VOLUME_STEP    = 0.1
+
+# Gamepad — any face button jumps / confirms; Start / Options / Back pauses
+PAD_DEADZONE      = 0.35
+PAD_JUMP_BUTTONS  = (0, 1, 2, 3)
+PAD_PAUSE_BUTTONS = (6, 7, 9)
 TITLE = "Ollie's Big Adventure"
 
 # Colors
@@ -160,7 +179,7 @@ STATE_HEAVEN_WIN        = "heaven_win"        # "Ollie's Home in Heaven" ending 
 LEVEL3_WIDTH = 8000
 ASCEND_DURATION          = 200   # frames for the carpet-to-heaven rise (~3.3 s)
 HEAVEN_CELEBRATE_DURATION = 360  # frames for the touch-God cutscene (6 s)
-ASCEND_GLOW_MAX_R     = 420      # final radius of the growing light during the ascent
+ASCEND_GLOW_BASE_R    = 105      # the ascent light is built once at this radius, then scaled up
 ASCEND_GLOW_MAX_ALPHA = 180      # final brightness of that light
 
 # Level 3 scoring

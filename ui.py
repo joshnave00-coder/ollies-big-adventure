@@ -9,17 +9,17 @@ from player import draw_ollie_sprite
 
 @functools.lru_cache(maxsize=None)
 def _font(name: str, size: int, bold: bool = False) -> pygame.font.Font:
-    return pygame.font.SysFont(name, size, bold=bold)
+    return art.font(size, bold)   # `name` is kept for call-site readability only
 
 
 class UI:
     def __init__(self, screen):
         self.screen = screen
-        self.font_lg = pygame.font.SysFont("Arial", 48, bold=True)
-        self.font_md = pygame.font.SysFont("Arial", 28, bold=True)
-        self.font_sm = pygame.font.SysFont("Arial", 18, bold=True)
-        self.font_xs = pygame.font.SysFont("Arial", 14)
-        self.font_xl = pygame.font.SysFont("Arial", 72, bold=True)
+        self.font_lg = art.font(48, True)
+        self.font_md = art.font(28, True)
+        self.font_sm = art.font(18, True)
+        self.font_xs = art.font(FONT_SIZE_XS)
+        self.font_xl = art.font(72, True)
 
         self.score_popups = []  # [(text, x, y, timer, color)]
         self.confetti = []
@@ -46,7 +46,7 @@ class UI:
         pygame.draw.rect(surf, hp_col, (14, 10, hp_w, 20), border_radius=4)
         pygame.draw.rect(surf, WHITE, (14, 10, 180, 20), 2, border_radius=4)
         hp_label = self.font_xs.render("HP", True, WHITE)
-        surf.blit(hp_label, (18, 14))
+        surf.blit(hp_label, (18, 20 - hp_label.get_height() // 2))
 
         # Lives
         for i in range(player.lives):
@@ -69,7 +69,7 @@ class UI:
             pygame.draw.rect(surf, PINK, (pb_x, pb_y, fill, 10), border_radius=4)
         pygame.draw.rect(surf, GOLD, (pb_x, pb_y, pb_w, 10), 1, border_radius=4)
         home_lbl = self.font_xs.render(f"{goal_label} \u2192", True, GOLD)
-        surf.blit(home_lbl, (pb_x + pb_w + 6, pb_y - 2))
+        surf.blit(home_lbl, (pb_x + pb_w + 6, pb_y + 5 - home_lbl.get_height() // 2))
 
         # Water bottle indicator — procedural icon + label
         if has_water:
@@ -109,12 +109,13 @@ class UI:
             sx = int(wx - cam_x)
             alpha = min(255, timer * 3)
             label = self.font_sm.render(text, True, color)
+            label.set_alpha(alpha)   # fades out over the last ~1.4 s
             self.screen.blit(label, (sx - label.get_width() // 2, int(wy)))
 
     # ------------------------------------------------------------------ #
     # Title screen
     # ------------------------------------------------------------------ #
-    def draw_title(self, frame, scores=None, sound_on=True):
+    def draw_title(self, frame, scores=None, sound_on=True, sound_text=None):
         surf = self.screen
         if scores is None:
             scores = []
@@ -173,17 +174,17 @@ class UI:
         # Controls (left-centre)
         ctrl_y = 330
         for line in [
-            "Arrow Keys / WASD — Move & Jump",
-            "Avoid Dog Catchers, Hawks & Lions",
-            "Find Lily & Leia, pet Campers, chase Birds!",
+            "Arrow Keys, WASD or a gamepad — Move & Jump",
+            "Three levels: the park, the house, and Heaven",
+            "Make friends, dodge the baddies, find the way home!",
         ]:
-            lbl = self.font_xs.render(line, True, WHITE)
+            lbl = art.fit_text(line, FONT_SIZE_XS, False, WHITE, 440)
             surf.blit(lbl, (360 - lbl.get_width() // 2, ctrl_y))
             ctrl_y += 24
 
         # Start prompt (blink)
         if (frame // 30) % 2 == 0:
-            start = self.font_md.render("Press SPACE or ENTER to Start", True, SUN_YELLOW)
+            start = art.fit_text("Press SPACE or ENTER to Start", 28, True, SUN_YELLOW, 440)
             surf.blit(start, (370 - start.get_width() // 2, 410))
 
         # How-to-play prompt (steady, in a little rounded chip so kids spot it)
@@ -224,7 +225,7 @@ class UI:
                 surf.blit(empty, (lb_x + 14, ry))
 
         # Sound toggle indicator (bottom-right)
-        snd_label = "[S] Sound: ON" if sound_on else "[S] Sound: OFF"
+        snd_label = sound_text or ("[S] Sound: ON" if sound_on else "[S] Sound: OFF")
         snd_color = HEALTH_GREEN   if sound_on else HEALTH_RED
         snd_txt   = self.font_sm.render(snd_label, True, snd_color)
         snd_bg    = pygame.Surface((snd_txt.get_width() + 16, snd_txt.get_height() + 8),
@@ -250,6 +251,7 @@ class UI:
             from characters import (DogCatcher, Bird, Hawk, GroundEnemy,
                                      FriendlyGirl, WaterBottle, MagicCarpet)
             from level2 import HouseCat, Roomba, BoneCrate
+            from level3 import CloudSpirit, Coin
             carpet = MagicCarpet(0, 0)
             carpet.active = True          # so it draws outside the carpet sequence
             self._icons = {
@@ -263,6 +265,8 @@ class UI:
                 "water":   WaterBottle(0, 0),
                 "carpet":  carpet,
                 "crate":   BoneCrate(0),
+                "spirit":  CloudSpirit(0, -50, 50, 0),
+                "coin":    Coin(0, 0),
             }
         return self._icons
 
@@ -291,7 +295,7 @@ class UI:
         pygame.draw.polygon(surf, col, [(cx - r, cy - r // 4),
                                         (cx + r, cy - r // 4), (cx, cy + r)])
 
-    def draw_howto(self, frame, sound_on=True):
+    def draw_howto(self, frame, sound_on=True, sound_text=None):
         self.frame = frame
         surf = self.screen
 
@@ -312,9 +316,9 @@ class UI:
         for i, line in enumerate([
             "Ollie the puppy is lost!",
             "Walk RIGHT to find his Magic Carpet and fly home.",
-            "Then sniff through the house to find his BIG BONE!",
+            "Find his BIG BONE in the house, then fly up to Heaven!",
         ]):
-            txt = self.font_sm.render(line, True, (40, 40, 40))
+            txt = art.fit_text(line, 18, True, (40, 40, 40), 560)
             surf.blit(txt, (50, 146 + i * 30))
 
         self._howto_band(surf, 650, 96, 600, 150, (255, 255, 255, 210), GOLD)
@@ -343,17 +347,18 @@ class UI:
         surf.blit(head2, (40, 408))
         for key, cx, cap in [("catcher", 150, "Dog Catcher"), ("lion", 320, "Lion"),
                              ("hawk", 470, "Hawk"), ("cat", 620, "House Cat"),
-                             ("roomba", 780, "Roomba")]:
+                             ("roomba", 780, "Roomba"), ("spirit", 930, "Cloud Spirit")]:
             self._howto_icon(surf, key, cx, 500, cap)
-        warn = self.font_sm.render("If one touches Ollie he loses a heart!", True, (190, 50, 50))
-        surf.blit(warn, (900, 470))
+        warn = art.fit_text("If one touches Ollie he loses a heart!", 18, True, (190, 50, 50), 330)
+        surf.blit(warn, (900, 414))
 
         # ---- Goals band ----
         head3 = self.font_md.render("Find these!", True, (200, 120, 30))
         surf.blit(head3, (40, 524))
         self._howto_icon(surf, "water", 150, 612, "Drink the water")
         self._howto_icon(surf, "carpet", 360, 612, "Ride the carpet home")
-        self._howto_icon(surf, "crate", 620, 612, "Find the BONE = you win!")
+        self._howto_icon(surf, "crate", 600, 612, "Find the big BONE")
+        self._howto_icon(surf, "coin", 790, 606, "Coins in Heaven")
 
         # ---- Footer: hearts, settings, back ----
         for i in range(3):
@@ -361,12 +366,12 @@ class UI:
         hearts_txt = self.font_sm.render("3 hearts = your lives", True, (40, 40, 40))
         surf.blit(hearts_txt, (905, 575))
 
-        snd = "ON" if sound_on else "OFF"
-        snd_col = HEALTH_GREEN if sound_on else HEALTH_RED
-        set_lbl = self.font_sm.render("Settings:  press  S  for Sound:", True, (40, 40, 40))
-        surf.blit(set_lbl, (905, 605))
-        snd_lbl = self.font_sm.render(snd, True, snd_col)
-        surf.blit(snd_lbl, (905 + set_lbl.get_width() + 6, 605))
+        snd_col = (30, 120, 30) if sound_on else (170, 40, 40)
+        snd_line = sound_text or ("[S] Sound: ON" if sound_on else "[S] Sound: OFF")
+        surf.blit(art.fit_text(snd_line, 18, True, snd_col, 350), (890, 605))
+        pad = art.fit_text("Gamepad: stick to walk, any button to jump", FONT_SIZE_XS, False,
+                           (40, 40, 40), 350)
+        surf.blit(pad, (890, 632))
 
         back = self.font_md.render("Press  SPACE  or  ESC  to go back", True, (60, 90, 160))
         if (frame // 30) % 2 == 0:
@@ -377,7 +382,7 @@ class UI:
         w = 64 if wide else 38
         pygame.draw.rect(surf, (250, 250, 250), (x, y, w, 34), border_radius=7)
         pygame.draw.rect(surf, (90, 90, 90), (x, y, w, 34), 2, border_radius=7)
-        glyph = self.font_sm.render(label, True, (50, 50, 50))
+        glyph = art.fit_text(label, 18, True, (50, 50, 50), w - 8)
         surf.blit(glyph, (x + w // 2 - glyph.get_width() // 2,
                           y + 17 - glyph.get_height() // 2))
 
@@ -415,10 +420,10 @@ class UI:
         surf.blit(sc_txt, (640 - sc_txt.get_width() // 2, 138))
 
         # Instructions
-        instr = self.font_xs.render(
-            "Type A-Z  |  ← → Move  |  ↑ ↓ Change Letter  |  ENTER Confirm  |  ESC Skip",
-            True, WHITE)
-        surf.blit(instr, (640 - instr.get_width() // 2, 198))
+        instr = art.fit_text(
+            "Type A-Z  |  Left / Right: Move  |  Up / Down: Change Letter  |  ENTER: Save  |  ESC: Skip",
+            FONT_SIZE_XS, False, WHITE, 620)
+        surf.blit(instr, (640 - instr.get_width() // 2, 190))
 
         # Letter boxes — three large cells
         box_w, box_h = 90, 110
@@ -514,7 +519,7 @@ class UI:
     # ------------------------------------------------------------------ #
     # Pause overlay
     # ------------------------------------------------------------------ #
-    def draw_pause(self):
+    def draw_pause(self, sound_text=None):
         surf = self.screen
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
         overlay.fill((0, 0, 0, 160))
@@ -529,7 +534,8 @@ class UI:
         surf.blit(title, (640 - title.get_width() // 2, 272))
         sub = self.font_sm.render("Press  P  or  ESC  to resume", True, CREAM)
         surf.blit(sub, (640 - sub.get_width() // 2, 360))
-        snd_hint = self.font_xs.render("Tip: Press S to toggle sound on/off", True, GRAY)
+        snd_hint = art.fit_text(sound_text or "Tip: Press S to toggle sound on/off",
+                                FONT_SIZE_XS, False, CREAM, 470)
         surf.blit(snd_hint, (640 - snd_hint.get_width() // 2, 408))
 
     # ------------------------------------------------------------------ #
@@ -792,7 +798,6 @@ class UI:
 
         # ---- Confetti ----
         if self.confetti_active:
-            self.update_confetti()
             for c in self.confetti:
                 ccx, ccy = int(c["x"]), int(c["y"])
                 s = c["size"]
@@ -854,7 +859,6 @@ class UI:
         surf.blit(overlay, (0, 0))
 
         if self.confetti_active:
-            self.update_confetti()
             for c in self.confetti:
                 ccx, ccy = int(c["x"]), int(c["y"])
                 s = c["size"]
@@ -1023,7 +1027,7 @@ class UI:
         # (one cached full-size glow, scaled and faded per frame)
         glow_r = int(140 + t * 280)
         glow = pygame.transform.smoothscale(
-            art.radial_glow(ASCEND_GLOW_MAX_R, (255, 248, 210), ASCEND_GLOW_MAX_ALPHA),
+            art.radial_glow(ASCEND_GLOW_BASE_R, (255, 248, 210), ASCEND_GLOW_MAX_ALPHA),
             (glow_r * 2, glow_r * 2))
         glow.set_alpha(int(255 * (50 + t * 130) / ASCEND_GLOW_MAX_ALPHA))
         surf.blit(glow, (SCREEN_WIDTH // 2 - glow_r, -glow_r + int(30 + t * 150)))
@@ -1231,7 +1235,7 @@ class UI:
             pygame.draw.line(surf, (210, 180, 110), (wx, y + 97), (wx + 30, y + 97), 2)
         # Little heart over the door + "OLLIE'S" sign
         self._draw_heart(surf, x + 100, y + 50, 9)
-        sign = _font("Arial", 13, True).render("OLLIE'S", True, (180, 130, 40))
+        sign = _font("Arial", FONT_SIZE_LABEL, True).render("OLLIE'S", True, (180, 130, 40))
         surf.blit(sign, (x + 100 - sign.get_width() // 2, y + 172))
 
     def draw_heaven_win(self, score, timer):
@@ -1270,7 +1274,6 @@ class UI:
 
         # Confetti
         if self.confetti_active:
-            self.update_confetti()
             for c in self.confetti:
                 ccx, ccy = int(c["x"]), int(c["y"])
                 s = c["size"]
@@ -1358,7 +1361,7 @@ class UI:
                   }.get(name, "char/girl_wave.png")
         cx, feet = x + 15, y + 50
         art.blit_sprite(surf, sprite, cx, feet, 74)
-        lbl = _font("Arial", 12, True).render(name, True, WHITE)
+        lbl = _font("Arial", FONT_SIZE_LABEL, True).render(name, True, WHITE)
         bg = pygame.Surface((lbl.get_width() + 8, lbl.get_height() + 2), pygame.SRCALPHA)
         bg.fill((40, 40, 40, 150))
         surf.blit(bg, (cx - bg.get_width() // 2, y - 22))

@@ -14,6 +14,7 @@ import pygame
 import math
 import array
 import random
+from constants import VOLUME_DEFAULT, VOLUME_STEP
 
 # Must match main.py: pygame.mixer.init(frequency=44100, size=-16, channels=2)
 _SR = 44100
@@ -155,12 +156,17 @@ class SoundManager:
 
     def __init__(self):
         self.enabled = True
+        self.available = True     # False when no sound could be built (no audio device)
+        self.volume = VOLUME_DEFAULT
         self._sounds: dict[str, pygame.mixer.Sound] = {}
         try:
             self._build_all()
         except Exception:
-            # If synthesis fails (e.g. mixer not ready), run silently
+            # If synthesis fails (e.g. mixer not ready), run silently — and say so
+            # on screen rather than showing a toggle that does nothing
+            self._sounds = {}
             self.enabled = False
+            self.available = False
 
     def _build_all(self):
         s = self._sounds
@@ -242,7 +248,24 @@ class SoundManager:
     # ── public API ────────────────────────────────────────────────────────────
 
     def toggle(self):
-        self.enabled = not self.enabled
+        if self.available:
+            self.enabled = not self.enabled
+
+    def change_volume(self, direction):
+        """Step the volume down (-1) or up (+1); returns the new volume 0.0–1.0."""
+        steps = round(self.volume / VOLUME_STEP) + direction
+        self.volume = max(0.0, min(1.0, steps * VOLUME_STEP))
+        for snd in self._sounds.values():
+            snd.set_volume(self.volume)
+        self._play('score')   # audible feedback at the new level
+        return self.volume
+
+    def status_text(self):
+        """One-line state for the title / How-to-Play / pause screens."""
+        if not self.available:
+            return "Sound is not available on this device"
+        state = "ON" if self.enabled else "OFF"
+        return f"[S] Sound: {state}    [-] [+] Volume: {round(self.volume * 100)}%"
 
     def _play(self, key):
         if self.enabled and key in self._sounds:

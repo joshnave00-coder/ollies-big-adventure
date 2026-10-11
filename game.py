@@ -12,6 +12,16 @@ import leaderboard as lb
 from sounds import SoundManager
 
 
+class _HeldKeys:
+    """Keyboard state plus extra keys held via a gamepad (same [] lookup)."""
+    def __init__(self, keys, extra):
+        self._keys = keys
+        self._extra = extra
+
+    def __getitem__(self, key):
+        return key in self._extra or self._keys[key]
+
+
 class Game:
     def __init__(self, screen, display=None):
         self.screen = screen
@@ -22,6 +32,8 @@ class Game:
         self.frame = 0
         self.lb_scores = lb.load_scores()   # cached leaderboard; refresh on save
         self.sounds = SoundManager()        # build all sounds once at startup
+        self._lag = 0.0                     # real time not yet turned into logic steps (ms)
+        self._pads = {}                     # connected gamepads by instance id
         self._init_game()
 
     def _init_game(self):
@@ -133,7 +145,6 @@ class Game:
         running = True
         while running:
             dt = self.clock.tick(FPS)
-            self.frame += 1
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -141,9 +152,9 @@ class Game:
                 elif event.type in (pygame.WINDOWFOCUSLOST, pygame.WINDOWMINIMIZED):
                     # Don't let enemies catch Ollie while nobody is looking
                     self._pause()
-                self._handle_event(event)
+                self._handle_event(self._pad_event(event))
 
-            self._update()
+            self._advance(dt)
             self._draw()
             if self.display and self.display is not self.screen:
                 # After a window resize the live surface can be a new object
@@ -165,6 +176,73 @@ class Game:
             display.blit(pygame.transform.smoothscale(self.screen, (w, h)),
                          ((dw - w) // 2, (dh - h) // 2))
 
+    def _advance(self, dt_ms):
+        """Turn `dt_ms` of real time into fixed 1/FPS logic steps, so the game
+        plays at the same speed whether the screen draws at 60 fps or 20.
+        Returns the number of steps run."""
+        if abs(dt_ms - STEP_MS) < STEP_SNAP_MS:
+            dt_ms = STEP_MS            # normal frame: exactly one step, no judder
+        self._lag += dt_ms
+        steps = 0
+        while self._lag >= STEP_MS - 1e-6 and steps < MAX_CATCHUP_STEPS:
+            self._lag -= STEP_MS
+            self.frame += 1
+            self._update()
+            steps += 1
+        # Still behind after the most steps we allow (a long stall such as dragging
+        # the window): drop the backlog rather than fast-forwarding to catch up
+        if self._lag >= STEP_MS:
+            self._lag = 0.0
+        return steps
+
+    # ------------------------------------------------------------------ #
+    # Gamepad — mapped onto the keyboard controls so there is one input path
+    # ------------------------------------------------------------------ #
+    def _pad_event(self, event):
+        """Track gamepads and translate their button / d-pad presses into the
+        equivalent KEYDOWN.  Any other event is returned unchanged."""
+        if event.type == pygame.JOYDEVICEADDED:
+            try:
+                pad = pygame.joystick.Joystick(event.device_index)
+                self._pads[pad.get_instance_id()] = pad
+            except pygame.error:
+                pass
+        elif event.type == pygame.JOYDEVICEREMOVED:
+            self._pads.pop(event.instance_id, None)
+            self._pause()              # controller unplugged mid-game
+        elif event.type == pygame.JOYBUTTONDOWN:
+            playing = self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3, STATE_PAUSED)
+            if event.button in PAD_PAUSE_BUTTONS and playing:
+                return pygame.event.Event(pygame.KEYDOWN, key=pygame.K_p)
+            if event.button in PAD_PAUSE_BUTTONS or event.button in PAD_JUMP_BUTTONS:
+                return pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN)
+        elif event.type == pygame.JOYHATMOTION:
+            hx, hy = event.value
+            key = (pygame.K_LEFT if hx < 0 else pygame.K_RIGHT if hx > 0 else
+                   pygame.K_UP if hy > 0 else pygame.K_DOWN if hy < 0 else None)
+            if key is not None:
+                return pygame.event.Event(pygame.KEYDOWN, key=key)
+        return event
+
+    def _read_input(self):
+        """Held keys, with any gamepad's stick / d-pad / face buttons folded in."""
+        keys = pygame.key.get_pressed()
+        held = set()
+        for pad in list(self._pads.values()):
+            try:
+                x = pad.get_axis(0) if pad.get_numaxes() > 0 else 0.0
+                hat = pad.get_hat(0) if pad.get_numhats() > 0 else (0, 0)
+                if x < -PAD_DEADZONE or hat[0] < 0:
+                    held.add(pygame.K_LEFT)
+                if x > PAD_DEADZONE or hat[0] > 0:
+                    held.add(pygame.K_RIGHT)
+                if hat[1] > 0 or any(pad.get_button(b) for b in PAD_JUMP_BUTTONS
+                                     if b < pad.get_numbuttons()):
+                    held.add(pygame.K_SPACE)
+            except pygame.error:
+                continue               # pad vanished between events
+        return _HeldKeys(keys, held) if held else keys
+
     def _pause(self):
         """Pause if a pauseable play state is active. Returns True if it paused."""
         if self.state in (STATE_PLAYING, STATE_LEVEL2, STATE_LEVEL3):
@@ -185,6 +263,15 @@ class Game:
                 return
             elif self.state == STATE_PAUSED:
                 self.state = self._prev_state
+                return
+
+        # Volume: - / + wherever the sound setting is shown
+        if self.state in (STATE_TITLE, STATE_HOWTO, STATE_PAUSED):
+            if key in (pygame.K_MINUS, pygame.K_KP_MINUS):
+                self.sounds.change_volume(-1)
+                return
+            if key in (pygame.K_EQUALS, pygame.K_PLUS, pygame.K_KP_PLUS):
+                self.sounds.change_volume(+1)
                 return
 
         if self.state == STATE_PAUSED:
@@ -306,12 +393,14 @@ class Game:
             self.home_timer += 1
             if self.home_timer == 120:
                 self.ui.start_confetti()
+            self.ui.update_confetti()
             return
 
         if self.state == STATE_LEVEL2_WIN:
             self.level2_win_timer += 1
             if self.level2_win_timer == 60:
                 self.ui.start_confetti()
+            self.ui.update_confetti()
             return
 
         if self.state == STATE_BONE_CELEBRATE:
@@ -344,12 +433,13 @@ class Game:
             self.heaven_win_timer += 1
             if self.heaven_win_timer == 60:
                 self.ui.start_confetti()
+            self.ui.update_confetti()
             return
 
         if self.state == STATE_ENTER_INITIALS:
             return
 
-        keys = pygame.key.get_pressed()
+        keys = self._read_input()
 
         # ---- LEVEL 3 PLAY (Heaven) ----
         if self.state == STATE_LEVEL3:
@@ -503,9 +593,11 @@ class Game:
             self.player.facing = 1
             self.sounds.play_slide()
             if not self.has_water:
-                self.player.lose_life()
+                # "Ouch" only when it really cost a life (not during the mercy window)
+                hurt = self.player.lose_life()
                 self.player.set_anim("sad", SLIDE_DURATION + 20)
-                self.ui.add_popup("Ouch! Too hot!", self.player.x, self.player.y - 30, HOT_RED)
+                self.ui.add_popup("Ouch! Too hot!" if hurt else "Hot! Hot! Hot!",
+                                  self.player.x, self.player.y - 30, HOT_RED)
             else:
                 self.player.set_anim("wag", SLIDE_DURATION + 20)
                 self.ui.add_popup("Wheee!", self.player.x, self.player.y - 30, SUN_YELLOW)
@@ -580,11 +672,12 @@ class Game:
     # ------------------------------------------------------------------ #
     def _draw(self):
         if self.state == STATE_TITLE:
-            self.ui.draw_title(self.frame, self.lb_scores, self.sounds.enabled)
+            self.ui.draw_title(self.frame, self.lb_scores, self.sounds.enabled,
+                               self.sounds.status_text())
             return
 
         if self.state == STATE_HOWTO:
-            self.ui.draw_howto(self.frame, self.sounds.enabled)
+            self.ui.draw_howto(self.frame, self.sounds.enabled, self.sounds.status_text())
             return
 
         if self.state == STATE_ENTER_INITIALS:
@@ -597,7 +690,7 @@ class Game:
             self._draw_game_world()
             self.ui.draw_hud(self.player, self.has_water, self.level.width,
                              self._goal_label())
-            self.ui.draw_pause()
+            self.ui.draw_pause(self.sounds.status_text())
             return
 
         if self.state == STATE_GAME_OVER:

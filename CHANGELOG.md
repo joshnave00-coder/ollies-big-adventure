@@ -5,6 +5,43 @@ Format: `## [version] — YYYY-MM-DD` with subsections Added / Changed / Fixed /
 
 ---
 
+## [0.8.2] — 2026-10-10
+
+Second durability pass — the five follow-ups from the 0.8.1 review.
+
+### Changed
+- **Game speed no longer depends on frame rate.** Logic runs in fixed 1/60 s steps
+  (`Game._advance`); a slow machine draws fewer frames but Ollie, enemies and cutscenes keep
+  real-time speed down to about 12 fps. A long stall (dragging the window) is dropped, not
+  fast-forwarded. Confetti now advances in `_update` instead of while drawing.
+- **High scores are saved per user**, outside the code folder (`%APPDATA%\OlliesBigAdventure\`
+  on Windows). The old `highscores.json` beside the code is read as the starting board until the
+  first new score is saved and is never written again, so playing no longer dirties the repo and
+  a read-only install can still save.
+- **Bigger text.** Smallest UI text 14 → 16 px (`FONT_SIZE_XS`); in-world labels (SAFE badge,
+  name tags) 10–13 → 14 px (`FONT_SIZE_LABEL`).
+- **Title and How-to-Play describe the whole game** (three levels, Cloud Spirits, coins, Heaven)
+  instead of only Level 1, and no longer say the bone is the win.
+- **One font helper with fallbacks** (`art.font`): Arial, then metric-compatible Liberation Sans /
+  Arimo, then other sans-serifs, then pygame's built-in font. Text inside fixed panels uses
+  `art.fit_text`, which shrinks to fit. The initials screen spells out the keys instead of using
+  arrow glyphs that some fonts lack.
+
+### Added
+- **Volume control**: `-` / `+` on the title, How-to-Play and pause screens (10% steps).
+- **Gamepad support**: stick or d-pad to walk, any face button to jump / confirm, Start to
+  pause, d-pad to enter initials. Unplugging the pad pauses the game.
+
+### Fixed
+- Score popups now actually fade out.
+- The hot slide only says "Ouch!" when it really cost a life.
+- With no audio device the screens say "Sound is not available" instead of offering a toggle
+  that reads ON while silent.
+- Removed a half-second freeze at the start of the carpet-to-Heaven cutscene (0.8.1 built its
+  glow at full size; it is now built small and scaled).
+
+---
+
 ## [0.8.1] — 2026-10-10
 
 Durability pass — no new gameplay; fixes found by running the game headlessly end to end.

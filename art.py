@@ -29,6 +29,29 @@ ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "
 
 
 # --------------------------------------------------------------------------- #
+# Fonts
+# --------------------------------------------------------------------------- #
+@functools.lru_cache(maxsize=None)
+def font(size, bold=False):
+    """The game's one typeface at `size`.  Arial where it exists; otherwise the
+    first installed fallback (Liberation Sans / Arimo have identical letter
+    widths, so layouts hold on Linux); otherwise pygame's built-in font."""
+    from constants import FONT_FAMILIES
+    return pygame.font.SysFont(FONT_FAMILIES, size, bold=bold)
+
+
+def fit_text(text, size, bold, color, max_w, min_size=10):
+    """Render `text`, stepping the size down until it fits in `max_w` pixels —
+    for text that sits inside a fixed panel and must not spill out when the
+    installed font is wider than Arial."""
+    while True:
+        surf = font(size, bold).render(text, True, color)
+        if surf.get_width() <= max_w or size <= min_size:
+            return surf
+        size -= 1
+
+
+# --------------------------------------------------------------------------- #
 # Colour sanitising — gfxdraw needs integer 0..255 components
 # --------------------------------------------------------------------------- #
 def _c(v):

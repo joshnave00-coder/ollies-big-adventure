@@ -8,7 +8,7 @@ from constants import *
 
 @functools.lru_cache(maxsize=None)
 def _font(name: str, size: int, bold: bool = False) -> pygame.font.Font:
-    return pygame.font.SysFont(name, size, bold=bold)
+    return art.font(size, bold)   # `name` is kept for call-site readability only
 
 
 def draw_ollie_sprite(surf, sx, sy, facing=1, anim_state="idle", frame=0, tail_angle=0.0):
